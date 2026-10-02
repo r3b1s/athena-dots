@@ -47,6 +47,8 @@ PKGS=(
     xorg-server                     # the X server itself
     xorg-xinit                      # startx / xinit
     xorg-xrandr                     # monitor size, set by bin/x11-monitor
+    xorg-xauth                      # X authentication (ly and startx)
+    ly                              # display manager; runs i3 (see AGENTS.md)
 )
 
 # What the config calls at runtime.
@@ -139,6 +141,17 @@ enable_nix() {
 enable_services() {
     command -v systemctl >/dev/null || return 0
     say "Enabling guest services"
+
+    # ly is the display manager: `ly@.service` is a template, so the instance is
+    # named for the tty it takes over. It Conflicts= getty@tty1, which systemd
+    # resolves automatically.
+    if pacman -Qq ly >/dev/null 2>&1; then
+        run $SUDO systemctl enable ly@tty1.service \
+            || warn "could not enable ly@tty1.service"
+        if systemctl is-enabled --quiet "${DISPLAY_MANAGER:-lightdm}.service" 2>/dev/null; then
+            warn "another display manager (${DISPLAY_MANAGER}) is enabled; disable it or ly will not start"
+        fi
+    fi
     # spice-vdagentd is socket-activated; qemu-guest-agent is started by udev
     # when the virtio channel appears, so it has nothing to enable.
     run $SUDO systemctl enable --now spice-vdagentd.socket \
@@ -216,7 +229,8 @@ install_links() {
         "btop/btop.conf:btop/btop.conf" \
         "btop/themes/pinkrot.theme:btop/themes/pinkrot.theme" \
         "nvim/colors/pinkrot.lua:nvim/colors/pinkrot.lua" \
-        "starship/starship.toml:starship.toml"
+        "starship/starship.toml:starship.toml" \
+        "ly/config.ini:ly/config.ini"
     do
         link "$REPO/${pair%%:*}" "$cfg/${pair#*:}"
     done

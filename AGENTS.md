@@ -4,14 +4,18 @@ AthenaOS is downstream of arch linux and has access to all official Arch repos. 
 
 ## Starting i3
 
-The VM has no display manager and no desktop environment. `xorg-server` and `xorg-xinit` are installed, so
-the session is started by hand from a TTY:
+The VM has no desktop environment. `ly` is the display manager: install.sh enables `ly@tty1.service`, and
+at boot you get a login prompt on the virtual console. Pick `i3` as the session; it comes from i3-wm's
+`/usr/share/xsessions/i3.desktop`, which ly reads, so no extra session file is needed.
 
-    startx /usr/bin/i3
+`ly/config.ini` is linked to `~/.config/ly/config.ini` and merged over `/etc/ly/config.ini`. It only
+overrides colours and `numlock`. Autologin is deliberately not enabled: log in interactively.
 
-There is deliberately no `~/.xinitrc` managed here yet, and no autologin. `i3-wm` does not depend on
-`xorg-server`, which is why both are in the package list. Arch's `/etc/X11/xinit/xinitrc` falls back to
-`twm`/`xclock`, so do not run a bare `startx` without naming i3.
+`xorg-xinit` and `xorg-xauth` are still installed, so `startx /usr/bin/i3` works from a tty as a fallback
+when ly will not come up. Do not run a bare `startx` without naming i3: Arch's
+`/etc/X11/xinit/xinitrc` falls back to `twm` and `xclock`.
+
+`i3-wm` does not depend on `xorg-server`, which is why the X packages are in the list explicitly.
 
 The display is SPICE (virt-manager's graphical console), paired with `spice-vdagent` for clipboard and
 resize. X has no mode-setting of its own: if X fails to find the video device on first boot, it needs an
