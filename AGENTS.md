@@ -17,6 +17,11 @@ The display is SPICE (virt-manager's graphical console), paired with `spice-vdag
 resize. X has no mode-setting of its own: if X fails to find the video device on first boot, it needs an
 explicit driver in `/etc/X11/xorg.conf.d/`.
 
+The resolution is pinned to 1920x1080 by `bin/x11-monitor`, run from `05-autostart.conf`'s `exec_always`.
+A headless VM otherwise comes up at whatever size the last SPICE client asked for. If the GPU offers
+1080p already, the script just selects it; otherwise it adds a CEA 1080p60 modeline first. Passing another
+size, e.g. `$bin/x11-monitor 2560x1440`, works only if the output already lists that mode.
+
 ## Layout and install
 
 - `i3/` — `config` + numbered `conf.d/` modules (see header of `i3/config`).

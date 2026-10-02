@@ -1,0 +1,71 @@
+#!/bin/sh
+# Force the monitor to a fixed resolution, default 1920x1080.
+#
+# i3 does no mode-setting, so this is xrandr's job. A headless VM in SPICE often
+# comes up at whatever size the last client asked for, which leaves the desktop
+# at an arbitrary resolution. Run from i3's exec_always, so it must be quiet
+# when nothing needs doing and must never fail a reload.
+#
+# Usage: x11-monitor [WIDTHxHEIGHT]
+set -u
+
+RES="${1:-1920x1080}"
+RATE=60
+
+case "$RES" in
+    *x*[0-9]*) ;;
+    *) echo "usage: x11-monitor [WIDTHxHEIGHT]" >&2; exit 2 ;;
+esac
+
+if ! command -v xrandr >/dev/null; then
+    echo "x11-monitor: xrandr not installed (package xorg-xrandr)" >&2
+    exit 0
+fi
+
+# One snapshot for the whole run, so the connected/mode listings agree.
+QUERY=$(xrandr --query 2>/dev/null) || { echo "x11-monitor: no X display" >&2; exit 0; }
+
+outputs() {
+    printf '%s\n' "$QUERY" | awk '$2 == "connected" && $3 != "off" { print $1 }'
+}
+has_mode() {
+    printf '%s\n' "$QUERY" | awk -v out="$1" '
+        $1 == out && $2 == "connected" { inblk = 1; next }
+        /^[^ \t]/                      { inblk = 0 }
+        inblk && $1 == r              { found = 1 }
+        END { exit !found }' r="$2"
+}
+# The current-mode marker (*) rides on the refresh rate: "1920x1080 60.00*+".
+active_mode() {
+    modes "$1" | awk '$2 ~ /\*/ { print $1; exit }'
+}
+modes() {
+    printf '%s\n' "$QUERY" | awk -v out="$1" '
+        $1 == out && $2 == "connected" { inblk = 1; next }
+        /^[^ \t]/                      { inblk = 0 }
+        inblk && $1 ~ /^[0-9]+x[0-9]+$/ { print }'
+}
+
+OUTS=$(outputs)
+[ -n "$OUTS" ] || { echo "x11-monitor: no connected outputs" >&2; exit 0; }
+
+changed=0
+for out in $OUTS; do
+    # Already there, whether from EDID or added on a previous run.
+    if ! has_mode "$out" "$RES"; then
+        # Only 1080p60 timings are carried; anything else must already exist.
+        [ "$RES" = "1920x1080" ] || { echo "x11-monitor: $RES not offered by $out" >&2; continue; }
+        # 1920x1080@60, standard CEA timings.
+        xrandr --newmode "1920x1080_60" 148.50 1920 2000 2080 2240 1080 1083 1088 1120 -hsync +vsync >/dev/null 2>&1
+        xrandr --addmode "$out" "1920x1080_60" >/dev/null 2>&1
+    fi
+
+    if [ "$(active_mode "$out")" != "$RES" ]; then
+        xrandr --output "$out" --mode "$RES" --rate "$RATE" >/dev/null 2>&1 && changed=1
+    fi
+done
+
+if [ "$changed" = 1 ] && command -v dunstify >/dev/null; then
+    dunstify -a athena-dots "Monitor set" "$RES @ ${RATE}Hz"
+fi
+exit 0

@@ -46,6 +46,7 @@ PKGS=(
     # (i3-wm does not depend on either of these). See AGENTS.md, "Starting i3".
     xorg-server                     # the X server itself
     xorg-xinit                      # startx / xinit
+    xorg-xrandr                     # monitor size, set by bin/x11-monitor
 )
 
 # What the config calls at runtime.

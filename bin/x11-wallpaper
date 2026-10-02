@@ -1,25 +1,48 @@
 #!/bin/sh
 # Set a random wallpaper from ~/.config/wallpapers (override with the first
-# argument). Run by i3 via exec_always, so it must be quiet and cheap when
-# there is nothing to pick, and must never fail the reload.
+# argument). Run by i3 via exec_always, so $mod+Shift+r (i3-msg reload) picks a
+# new one. It must never fail the reload, and it should always say what it did:
+# with a single image, or an empty folder, silence would look like a dead key.
 set -u
 
 dir="${1:-${XDG_CONFIG_HOME:-$HOME/.config}/wallpapers}"
+urgency="low"
+timeout=5
+
+notify() {
+    command -v dunstify >/dev/null || return 0
+    dunstify -a athena-dots -u "$urgency" -t "$timeout" "Wallpaper" "$1"
+}
 
 if [ ! -d "$dir" ]; then
     echo "x11-wallpaper: no such directory: $dir" >&2
+    urgency="normal"
+    timeout=0
+    notify "no such folder: $dir"
     exit 0
 fi
 
-# shuf picks uniformly at random and exits non-zero when the input is empty,
-# which is how an empty or image-less directory is detected below.
+# Only the top level, no dotfiles, images only. shuf picks uniformly at random.
 wallpaper=$(find "$dir" -maxdepth 1 -type f -not -name '.*' \
     \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' -o -iname '*.bmp' \) \
     -print 2>/dev/null | shuf -n 1)
 
 if [ -z "$wallpaper" ]; then
-    echo "x11-wallpaper: no images in $dir" >&2
+    count=$(find "$dir" -maxdepth 1 -type f -not -name '.*' 2>/dev/null | wc -l)
+    echo "x11-wallpaper: no images in $dir ($count other file(s))" >&2
+    urgency="normal"
+    timeout=0
+    if [ "$count" -gt 0 ]; then
+        notify "no images in $dir (only $count other file(s))"
+    else
+        notify "no images in $dir"
+    fi
     exit 0
 fi
 
-exec feh --bg-fill "$wallpaper"
+if command -v feh >/dev/null && feh --bg-fill "$wallpaper"; then
+    notify "$(basename "$wallpaper")"
+else
+    echo "x11-wallpaper: feh failed for $wallpaper" >&2
+    exit 0
+fi
