@@ -68,7 +68,23 @@ fi
 
 reset_root
 
-if command -v feh >/dev/null && feh --bg-fill --no-fscreen "$wallpaper"; then
+# Fill for the size of the display we are actually on, not for whatever the root
+# window happens to be. If a second screen is momentarily still enabled (see
+# bin/x11-monitor), --bg-fill alone would tile across it; --bg-size keeps the
+# image to one screen and lets feh solid-fill the remainder.
+screen_size() {
+    command -v xrandr >/dev/null || return 0
+    xrandr --query 2>/dev/null | awk '
+        $2 == "connected" { inblk = 1; next }
+        /^[^ 	]/          { inblk = 0 }
+        inblk && $2 ~ /\*/ { print $1; exit }'
+}
+
+set -- --bg-fill --no-fscreen
+size=$(screen_size)
+[ -n "$size" ] && set -- "$@" --bg-size "$size"
+
+if command -v feh >/dev/null && feh "$@" "$wallpaper"; then
     notify "reset + $(basename "$wallpaper")"
 else
     echo "x11-wallpaper: feh failed for $wallpaper" >&2

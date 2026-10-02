@@ -40,6 +40,7 @@ SUDO=
 PKGS=(
     i3-wm i3status-rust autotiling   # window manager, bar, auto-split
     rofi dunst kitty neovim btop     # launcher, notifications, terminal, editor, monitor
+    alacritty                        # secondary terminal; kitty is the default
     mise nix                         # package / language managers
 
     # No display manager: the X server is started per session with `startx`
@@ -208,7 +209,7 @@ install_links() {
     local cfg="${XDG_CONFIG_HOME:-$HOME/.config}"
 
     local d
-    for d in i3 kitty rofi dunst i3status-rust shell; do
+    for d in i3 kitty alacritty rofi dunst i3status-rust shell; do
         link "$REPO/$d" "$cfg/$d"
     done
 

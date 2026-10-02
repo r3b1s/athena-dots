@@ -26,15 +26,21 @@ A headless VM otherwise comes up at whatever size the last SPICE client asked fo
 1080p already, the script just selects it; otherwise it adds a CEA 1080p60 modeline first. Passing another
 size, e.g. `$bin/x11-monitor 2560x1440`, works only if the output already lists that mode.
 
-It also anchors the output at `+0+0` and shrinks the X framebuffer with `--fbauto` when the screen is
-larger than the output. Without that, a second login leaves the framebuffer at the size SPICE handed the
-previous session, feh fills the oversized root window, and the wallpaper looks off-centre and tiles along
-the gap.
+It also enforces a *single* screen: every output except the primary one is switched off, including ones
+that are disconnected but still enabled, and the framebuffer is then set to exactly the target rather than
+with `--fbauto`. This matters more than the resolution. SPICE can leave a second head enabled across a
+logout/login, and any enabled output widens the framebuffer past the display. The root window then spans
+both, feh fills all of it, and the wallpaper runs off the right edge into the neighbouring screen instead of
+tiling. Measured on the failing VM: the same eye feature appeared at x=534 and again at x=1814, exactly
+1280px later, which is the second screen showing through.
+
+`bin/x11-wallpaper` passes `--bg-size` from the live output size as a second guard, so feh composes for one
+screen even if a stray output is momentarily still on.
 
 ## Layout and install
 
 - `i3/` — `config` + numbered `conf.d/` modules (see header of `i3/config`).
-- One top-level dir per app (`kitty/`, `rofi/`, `dunst/`, `starship/`, …), plus `shell/` (bash integration), `bin/` (helper scripts → `~/.local/bin`).
+- One top-level dir per app (`kitty/`, `alacritty/`, `rofi/`, `dunst/`, `starship/`, …), plus `shell/` (bash integration), `bin/` (helper scripts → `~/.local/bin`).
 - `~/.config/wallpapers/` is yours: install.sh only creates it if missing, and `bin/x11-wallpaper` picks a
   random image from it on every i3 start and reload. It always clears the root window to a solid colour
   first (via `xorg-xsetroot`), so a repeat run is visible and stale tiling cannot survive. `$mod+Shift+r`
@@ -50,8 +56,9 @@ the gap.
 - Guest is qemu/kvm/libvirt: no i3lock, no picom, no brightness/nightlight/screen recording.
 - Colours are the pinkrot theme throughout, kept inside each app's own dir: `i3/conf.d/01-pinkrot.conf` (window
   colours), `i3/conf.d/15-bar.conf` (bar colours; a `bar` block can't be split across includes),
-  `kitty/pinkrot.conf`, `i3status-rust/themes/`, `rofi/`, `dunst/`, `qutebrowser/pinkrot.py`, `btop/`, `nvim/`.
-- `install.sh` links whole dirs for i3, kitty, rofi, dunst, i3status-rust, shell; individual files for
+  `kitty/pinkrot.conf`, `alacritty/alacritty.toml` (single file), `i3status-rust/themes/`, `rofi/`, `dunst/`,
+`qutebrowser/pinkrot.py`, `btop/`, `nvim/`, `ly/config.ini`.
+- `install.sh` links whole dirs for i3, kitty, alacritty, rofi, dunst, i3status-rust, shell; individual files for
   qutebrowser, btop, nvim and `starship/starship.toml` -> `~/.config/starship.toml` (those apps write runtime
   state next to their config).
 - `shell/` is sourced by a managed `# >>> athena-dots >>>` block appended to `~/.bashrc` (idempotent, bash only):

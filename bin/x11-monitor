@@ -1,10 +1,19 @@
 #!/bin/sh
-# Force the monitor to a fixed resolution, default 1920x1080.
+# Force the monitor to a fixed resolution, default 1920x1080, on exactly one
+# screen.
 #
 # i3 does no mode-setting, so this is xrandr's job. A headless VM in SPICE often
 # comes up at whatever size the last client asked for, which leaves the desktop
 # at an arbitrary resolution. Run from i3's exec_always, so it must be quiet
 # when nothing needs doing and must never fail a reload.
+#
+# The second half is the important half. SPICE can leave a second output enabled
+# across a logout/login - either a second connected head or a disconnected one
+# that X never switched off. Any output left on widens the framebuffer beyond
+# the display, the root window spans all of it, and feh fills the lot: you get
+# the wallpaper running off the right edge into the neighbouring screen. So this
+# turns off everything except one output and then sizes the framebuffer to
+# match, exactly, rather than to fit whatever happens to be enabled.
 #
 # Usage: x11-monitor [WIDTHxHEIGHT]
 set -u
@@ -25,8 +34,21 @@ fi
 # One snapshot for the whole run, so the connected/mode listings agree.
 QUERY=$(xrandr --query 2>/dev/null) || { echo "x11-monitor: no X display" >&2; exit 0; }
 
-outputs() {
-    printf '%s\n' "$QUERY" | awk '$2 == "connected" && $3 != "off" { print $1 }'
+# Connected and drawing something (not "1920x1080+0+0 off").
+connected() {
+    printf '%s\n' "$QUERY" | awk '
+        $2 == "connected" {
+            for (i = 1; i <= NF; i++)
+                if ($i ~ /^[0-9]+x[0-9]+\+[0-9]+\+[0-9]+$/ && $(i) !~ /off$/) { print $1; next }
+        }'
+}
+# Disconnected but still switched on: a head unplugged, or one SPICE left behind.
+stale() {
+    printf '%s\n' "$QUERY" | awk '
+        $2 == "disconnected" {
+            for (i = 1; i <= NF; i++)
+                if ($i ~ /^[0-9]+x[0-9]+\+[0-9]+\+[0-9]+$/ && $i !~ /off$/) { print $1; next }
+        }'
 }
 has_mode() {
     printf '%s\n' "$QUERY" | awk -v out="$1" '
@@ -35,9 +57,18 @@ has_mode() {
         inblk && $1 == r              { found = 1 }
         END { exit !found }' r="$2"
 }
+modes() {
+    printf '%s\n' "$QUERY" | awk -v out="$1" '
+        $1 == out && $2 == "connected" { inblk = 1; next }
+        /^[^ \t]/                      { inblk = 0 }
+        inblk && $1 ~ /^[0-9]+x[0-9]+$/ { print }'
+}
 # The current-mode marker (*) rides on the refresh rate: "1920x1080 60.00*+".
+active_mode() {
+    modes "$1" | awk '$2 ~ /\*/ { print $1; exit }'
+}
 # The geometry is the field shaped like "1920x1080+0+0", not a fixed position:
-# "primary" and "rotate"/"reflect" keywords shift it around.
+# "primary" and rotate/reflect keywords shift it around.
 active_pos() {
     printf '%s\n' "$QUERY" | awk -v out="$1" '
         $1 == out && $2 == "connected" {
@@ -50,21 +81,7 @@ active_pos() {
                 }
         }'
 }
-
-active_mode() {
-    modes "$1" | awk '$2 ~ /\*/ { print $1; exit }'
-}
-modes() {
-    printf '%s\n' "$QUERY" | awk -v out="$1" '
-        $1 == out && $2 == "connected" { inblk = 1; next }
-        /^[^ \t]/                      { inblk = 0 }
-        inblk && $1 ~ /^[0-9]+x[0-9]+$/ { print }'
-}
-
-# The X screen ("framebuffer") is not automatically the size of the output.
-# When it is larger - which is what a second login in SPICE tends to leave -
-# feh fills the whole oversized root window, so the wallpaper looks off-centre
-# and tiles along the gap. Both need correcting, not just the mode.
+# The X screen ("framebuffer"), which is not automatically the size of an output.
 fb_size() {
     printf '%s\n' "$QUERY" | awk '/^Screen/ {
         for (i = 1; i <= NF; i++)
@@ -76,37 +93,61 @@ fb_size() {
     }'
 }
 
-OUTS=$(outputs)
+OUTS=$(connected)
 [ -n "$OUTS" ] || { echo "x11-monitor: no connected outputs" >&2; exit 0; }
 
 changed=0
-for out in $OUTS; do
-    # Already there, whether from EDID or added on a previous run.
-    if ! has_mode "$out" "$RES"; then
-        # Only 1080p60 timings are carried; anything else must already exist.
-        [ "$RES" = "1920x1080" ] || { echo "x11-monitor: $RES not offered by $out" >&2; continue; }
-        # 1920x1080@60, standard CEA timings.
-        xrandr --newmode "1920x1080_60" 148.50 1920 2000 2080 2240 1080 1083 1088 1120 -hsync +vsync >/dev/null 2>&1
-        xrandr --addmode "$out" "1920x1080_60" >/dev/null 2>&1
-    fi
 
-    # --pos 0x0 keeps the output anchored; a leftover offset is what makes the
-    # wallpaper appear to tile along an edge.
-    if [ "$(active_mode "$out")" != "$RES" ] || [ "$(active_pos "$out")" != "+0+0" ]; then
-        xrandr --output "$out" --mode "$RES" --rate "$RATE" --pos 0x0 >/dev/null 2>&1 && changed=1
-    fi
+# ── one screen only ───────────────────────────────────────────────────────
+# The one to keep: the head flagged primary, else the first connected. This is a
+# single-display VM, so turning the rest off is the intent, not a workaround.
+
+keep=$(printf '%s\n' "$QUERY" | awk '$2 == "connected" && / primary / { print $1; exit }')
+[ -n "$keep" ] || keep=$(printf '%s\n' "$OUTS" | head -n1)
+
+for out in $OUTS; do
+    [ "$out" = "$keep" ] && continue
+    xrandr --output "$out" --off >/dev/null 2>&1 && changed=1
+    echo "x11-monitor: turned off extra output $out" >&2
 done
 
-# Shrink the screen back to fit its outputs. --fbauto is a no-op when it already
-# matches, which keeps a correct setup from flickering on every reload.
+for out in $(stale); do
+    xrandr --output "$out" --off >/dev/null 2>&1 && changed=1
+    echo "x11-monitor: turned off stale output $out" >&2
+done
+
+# ── size the one screen we keep ───────────────────────────────────────────
+
+# Already offered, from EDID or from a previous run.
+if ! has_mode "$keep" "$RES"; then
+    # Only 1080p60 timings are carried; anything else must already exist.
+    if [ "$RES" = "1920x1080" ]; then
+        # 1920x1080@60, standard CEA timings.
+        xrandr --newmode "1920x1080_60" 148.50 1920 2000 2080 2240 1080 1083 1088 1120 -hsync +vsync >/dev/null 2>&1
+        xrandr --addmode "$keep" "1920x1080_60" >/dev/null 2>&1
+    else
+        echo "x11-monitor: $RES not offered by $keep" >&2
+    fi
+fi
+
+# --pos 0x0 keeps the output anchored at the origin; a leftover offset is what
+# makes the wallpaper appear to run off one edge.
+if [ "$(active_mode "$keep")" != "$RES" ] || [ "$(active_pos "$keep")" != "+0+0" ]; then
+    if xrandr --output "$keep" --mode "$RES" --rate "$RATE" --pos 0x0 >/dev/null 2>&1; then
+        changed=1
+    fi
+fi
+
+# Exact, not --fbauto: fbauto sizes the framebuffer to fit *every* enabled
+# output, which is the opposite of what a one-screen VM wants.
 if [ "$(fb_size)" != "$RES" ]; then
-    if xrandr --fbauto >/dev/null 2>&1 || xrandr --fb "$RES" >/dev/null 2>&1; then
+    if xrandr --fb "$RES" >/dev/null 2>&1; then
         echo "x11-monitor: framebuffer $(fb_size) -> $RES" >&2
         changed=1
     fi
 fi
 
 if [ "$changed" = 1 ] && command -v dunstify >/dev/null; then
-    dunstify -a athena-dots "Monitor set" "$RES @ ${RATE}Hz"
+    dunstify -a athena-dots "Monitor set" "$keep: $RES @ ${RATE}Hz"
 fi
 exit 0
