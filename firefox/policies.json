@@ -1,0 +1,16 @@
+{
+  "policies": {
+    "Extensions": {
+      "Install": [
+        "https://addons.mozilla.org/firefox/downloads/latest/vimium-ff/latest.xpi",
+        "https://addons.mozilla.org/firefox/downloads/latest/nova_flame/latest.xpi"
+      ]
+    },
+    "Preferences": {
+      "extensions.activeThemeID": {
+        "Value": "nova-flame@mozilla.org",
+        "Status": "default"
+      }
+    }
+  }
+}

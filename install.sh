@@ -42,6 +42,7 @@ PKGS=(
     rofi dunst kitty neovim btop     # launcher, notifications, terminal, editor, monitor
     alacritty                        # default terminal ($terminal in i3/config)
     chromium                         # browser that follows the system colour scheme
+    firefox                          # second browser; themed and preconfigured by policy
     mise nix                         # package / language managers
 
     # No display manager: the X server is started per session with `startx`
@@ -248,6 +249,39 @@ install_ly_theme() {
 
     # Not worth a reboot request: log out of the session and back in.
     echo "ly theme: log out and back in to see it"
+}
+
+# Firefox: the Flame theme and Vimium, via enterprise policy.
+#
+# /etc/firefox/policies/policies.json is the documented system-wide location on
+# Linux (the install-directory alternative under /usr/lib/firefox would be
+# clobbered by package upgrades). The policy installs both add-ons from AMO at
+# startup, so this needs network on first run, and activates the theme through
+# the pref its manifest declares.
+#
+# Vimium's options cannot be installed this way: its settings live in the
+# extension's own browser storage, the only import path is the Restore control
+# on chrome-extension://<id>/options.html, and no policy can write extension
+# storage. Load firefox/vimium-options.json from the repo there once by hand.
+# qutebrowser gets the same settings by config in qutebrowser/vimium.py, which
+# needs no such step.
+setup_firefox() {
+    local target="/etc/firefox/policies/policies.json"
+    local src="$REPO/firefox/policies.json"
+
+    if [ -r "$src" ] && command -v pacman >/dev/null && pacman -Qq firefox >/dev/null 2>&1; then
+        say "Installing the Firefox policy"
+        if [ "$dry" = 1 ]; then
+            echo "+ install $src -> $target"
+        elif [ -f "$target" ] && cmp -s "$src" "$target"; then
+            echo "firefox policy: already up to date"
+        else
+            [ -f "$target" ] && run $SUDO cp -a "$target" "$target.bak.$(date +%s)"
+            run $SUDO install -D -m 644 "$src" "$target"
+            echo "firefox policy: $target (Flame theme, Vimium from AMO)"
+        fi
+    fi
+
 }
 
 # Set a key in an INI file, creating the file and its [Settings] section as
@@ -483,6 +517,7 @@ install_links() {
     for pair in \
         "qutebrowser/config.py:qutebrowser/config.py" \
         "qutebrowser/pinkrot.py:qutebrowser/pinkrot.py" \
+        "qutebrowser/vimium.py:qutebrowser/vimium.py" \
         "btop/btop.conf:btop/btop.conf" \
         "btop/themes/pinkrot.theme:btop/themes/pinkrot.theme" \
         "nvim/colors/pinkrot.lua:nvim/colors/pinkrot.lua" \
@@ -530,6 +565,7 @@ if [ "$do_packages" = 1 ]; then
     enable_nix
     setup_dark_theme
     setup_gtk
+    setup_firefox
 fi
 [ "$do_links" = 1 ] && install_links
 
