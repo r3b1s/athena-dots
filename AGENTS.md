@@ -11,7 +11,7 @@ AthenaOS is downstream of arch linux and has access to all official Arch repos. 
 | Window manager and layout | `i3-wm`, `i3status-rust` (bar), `autotiling` |
 | Launcher, notifications | `rofi`, `dunst`, `libnotify` |
 | Terminals, editor, monitors | `alacritty` (default), `kitty`, `neovim`, `btop` |
-| Browsers | `chromium`, `qutebrowser-git` |
+| Browsers | `chromium`, `qutebrowser-git`, `firefox` |
 | X and the session | `xorg-server`, `xorg-xinit`, `xorg-xauth`, `xorg-xrandr`, `ly` |
 | Shell and prompt | `starship`, `eza`, `zoxide`, `fzf`, `bat`, `bash-completion` |
 | Package managers | `mise`, `nix` |
@@ -33,6 +33,7 @@ Notes on particular entries:
 - **`xorg-server` and `xorg-xinit` are explicit** because `i3-wm` does not depend on either. They are what
   `startx` needs, and what `ly` runs against.
 - **`chromium`** is installed alongside `qutebrowser-git` because both follow the system colour scheme.
+- **`firefox`** is configured by enterprise policy, not by copying profile files; see below.
 - **`ttf-jetbrains-mono-nerd`** is the font named by kitty, alacritty, i3, ly and the bar.
 
 ## Starting i3
@@ -75,6 +76,73 @@ painting at 1280x800 and growing to 1920x1080, and differed by 8.80 once the two
 are now one line, sequenced with `&&` in an explicit `sh -c`, because i3's `exec` does not use a shell.
 
 `bin/x11-wallpaper` is a plain `feh --bg-fill`, with no `--bg-size` and no root-window reset.
+
+## Firefox
+
+`setup_firefox()` in `install.sh` installs `firefox/policies.json` to
+`/etc/firefox/policies/policies.json`, the documented system-wide location on Linux. The install-directory
+alternative under `/usr/lib/firefox/distribution` is read too, but a package upgrade would clobber it.
+
+The policy does two things:
+
+- `Extensions.Install` fetches two add-ons from AMO at Firefox's first start, so that run needs network:
+  Vimium (`vimium-ff`, id `{d7742d87-e61d-4b78-b8a1-b469842139fa}`) and the Flame theme
+  (`nova_flame`, id `nova-flame@mozilla.org`, requires Firefox 153+). Both ids were read out of the XPIs
+  rather than guessed.
+- `Preferences` sets `extensions.activeThemeID` to the theme's id, which is what actually *activates* it;
+  installing a theme does not select it. It is set with status `default`, not `locked`, so the theme is
+  active on a fresh profile but can still be changed in the UI. If a later build ever resets it, `locked`
+  forces it.
+
+**Vimium's options cannot be installed by policy.** Its settings live in the extension's own browser
+storage, and the only import path is the Restore control on `chrome-extension://<id>/options.html`. No
+Firefox policy can write extension storage, and the profile's IndexedDB cannot be authored from outside.
+`install.sh` therefore copies `firefox/vimium-options.json` to `~/.config/firefox/vimium-options.json` for a
+one-time manual import. See "qutebrowser" below for the same settings applied where they can be scripted.
+
+## qutebrowser
+
+`qutebrowser/config.py` sources `pinkrot.py` (colours) and `vimium.py` (Vimium parity). `vimium.py` is
+generated from `firefox/vimium-options.json` and carries the Vimium shortcuts and search keywords in
+qutebrowser's syntax: `config.bind()` instead of `map` lines, and a dict with a `{}` placeholder instead of
+`keyword: URL` lines with `%s`.
+
+Three things were checked in Vimium's source rather than assumed:
+
+- `scrollPageDown`/`scrollPageUp` move by **half** a viewport, not a whole one, so they map to
+  `scroll-page 0 0.5` / `-0.5`.
+- All four mappings already coincide with qutebrowser's defaults (`J`/`K` are `tab-next`/`tab-prev`), so
+  those binds pin existing behaviour rather than change it.
+- A duplicate keyword resolves to the **last** definition, because Vimium assigns into an object while
+  parsing. The options file defined `b` twice, for Brave and then Bing, so `b` was Bing.
+
+Two things were resolved in the source options file rather than worked around here. The duplicate `b` line
+for Bing is gone, leaving Brave as `b` in both browsers, and `mb` now uses `%s` rather than `%st`, which had
+been appending a literal `t` to every query (`mb foo` searched for `foot`). Bing is therefore no longer
+available under `b`; add it under its own keyword if wanted.
+
+qutebrowser requires a `DEFAULT` search engine and the options file has none, so `DEFAULT` is Brave, the
+same URL as `b`.
+
+## Neovim
+
+`nvim/colors/pinkrot.lua` is linked to `~/.config/nvim/colors/pinkrot.lua`, but a colourscheme file alone
+does nothing: something has to select it, and a bare `neovim` package has no `init.lua`. That is why the
+theme looked uninstalled on the VM while the file was present and working.
+
+`setup_nvim()` therefore appends a managed `-- >>> athena-dots >>>` block to `~/.config/nvim/init.lua`,
+creating the file if absent and never touching anything outside the markers, so an existing plugin-manager
+config survives. The `nvim/lua/plugins/pinkrot-theme.lua` LazyVim spec is still linked when
+`~/.config/nvim/lua/plugins/` exists.
+
+One trap in the colours file itself: it set `vim.g.colors_name` before `highlight clear`, and that command
+resets `g:colors_name`, so it read back as nil even though the colours applied. The assignment now comes
+after, and `:colorscheme` reports `pinkrot` again.
+
+Separately, the AthenaOS image ships a `~/.vimrc` from the amix/vimrc installer that hardcodes
+`/home/athena/.vim_runtime`. On this VM the user is `t`, so every `source` in it failed with E484 and Vim
+would not start cleanly. The paths are `$HOME`-relative now. That file is image state, not part of this repo,
+so a rebuild needs the same one-line repair.
 
 ## Layout and install
 
