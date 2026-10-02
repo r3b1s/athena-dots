@@ -21,11 +21,9 @@ set $bin ~/.local/bin
 # Default terminal. alacritty/alacritty.toml carries the pinkrot colours.
 set $terminal alacritty
 
-# Bare session: name a desktop, so services that gate on it load. The GTK portal
-# backend is the one that implements org.freedesktop.portal.Settings, and its
-# gtk.portal declares `UseIn=gnome`, so without this it is skipped entirely and
-# anything asking the portal for the system colour scheme - qutebrowser included
-# - falls back to light. See bin/xdg-portal.conf and setup_dark_theme().
-set_environment XDG_CURRENT_DESKTOP GNOME
+# XDG_CURRENT_DESKTOP is exported from shell/xprofile (-> ~/.xprofile), which the
+# session start-up sources before i3 is exec'd, so every child of i3 inherits it.
+# i3 has no set_environment directive; an earlier version of this file used one and
+# i3 refused to parse it. See bin/xdg-portal.conf and setup_dark_theme().
 
 include conf.d/*.conf

@@ -51,7 +51,8 @@ the same eye feature at x=534 and again 1280px later. The host now boots with a 
 - System dark mode: `setup_dark_theme()` in `install.sh` sets dconf `color-scheme=prefer-dark` and
   `gtk-theme=Adwaita-dark`, and enables the `xdg-desktop-portal{,-gtk}` user services. GTK4 reads the first,
   GTK3 the second, and sandboxed apps and Qt6 (qutebrowser) go through the portal. The portal backend is gated
-  on `XDG_CURRENT_DESKTOP`, which `i3/config` sets to `GNOME` for the session; see `bin/xdg-portal.conf`.
+  on `XDG_CURRENT_DESKTOP`, exported from `shell/xprofile` (-> `~/.xprofile`) because i3 has no
+  `set_environment` directive; see `bin/xdg-portal.conf`.
   Run the installer from inside the i3 session, or the dconf half is skipped with instructions.
 - Runtime helpers beyond the list above: jq, maim, xclip, xcolor, feh (random wallpaper), numlockx,
   polkit-gnome, network-manager-applet, spice-vdagent, qemu-guest-agent, pipewire-pulse,

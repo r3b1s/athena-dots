@@ -1,0 +1,13 @@
+# ~/.xprofile — sourced by the session before the desktop starts, so everything
+# below applies to the whole session rather than just this file's shell.
+#
+# XDG_CURRENT_DESKTOP: a bare i3 session names no desktop, and the xdg-desktop-portal
+# GTK backend is gated on it. Its descriptor, /usr/share/xdg-desktop-portal/portals/gtk.portal,
+# declares `UseIn=gnome`, so without this variable the backend is skipped, the
+# org.freedesktop.portal.Settings interface is unavailable, and anything that asks
+# the portal for the system colour scheme - qutebrowser among them - falls back to
+# light. i3 has no way to export this itself; it has no set_environment directive.
+#
+# Harmless for GTK, which ignores the extra token, but it is a lie either way:
+# naming GNOME is simply the only way to get that portal backend loaded here.
+export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-GNOME}"

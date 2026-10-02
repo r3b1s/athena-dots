@@ -405,6 +405,12 @@ install_links() {
 
     install_bashrc_block
 
+    # ~/.xprofile is sourced by the session start-up (ly runs /etc/ly/setup.sh,
+    # which reads it before exec'ing the session), so this is how XDG_CURRENT_DESKTOP
+    # reaches everything i3 spawns. It lives in $HOME, not in ~/.config, hence the
+    # separate link rather than one of the pair mappings above.
+    link "$REPO/shell/xprofile" "$HOME/.xprofile"
+
     local script
     for script in "$REPO"/bin/*; do
         link "$script" "$HOME/.local/bin/$(basename "$script")"
