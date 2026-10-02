@@ -26,25 +26,19 @@ A headless VM otherwise comes up at whatever size the last SPICE client asked fo
 1080p already, the script just selects it; otherwise it adds a CEA 1080p60 modeline first. Passing another
 size, e.g. `$bin/x11-monitor 2560x1440`, works only if the output already lists that mode.
 
-It also enforces a *single* screen: every output except the primary one is switched off, including ones
-that are disconnected but still enabled, and the framebuffer is then set to exactly the target rather than
-with `--fbauto`. This matters more than the resolution. SPICE can leave a second head enabled across a
-logout/login, and any enabled output widens the framebuffer past the display. The root window then spans
-both, feh fills all of it, and the wallpaper runs off the right edge into the neighbouring screen instead of
-tiling. Measured on the failing VM: the same eye feature appeared at x=534 and again at x=1814, exactly
-1280px later, which is the second screen showing through.
-
-`bin/x11-wallpaper` passes `--bg-size` from the live output size as a second guard, so feh composes for one
-screen even if a stray output is momentarily still on.
+Nothing more than the resolution: the script selects the mode and rate, and does nothing else. An earlier
+version also switched off extra and stale outputs, forced `--pos 0x0` and resized the framebuffer, all while
+chasing a wallpaper that appeared to tile. That turned out to be a second X screen showing through, seen as
+the same eye feature at x=534 and again 1280px later. The host now boots with a single `Virtual-1` at
+`1920x1080+0+0`, so none of that is needed. `bin/x11-wallpaper` is likewise a plain `feh --bg-fill`, with no
+`--bg-size` and no root-window reset.
 
 ## Layout and install
 
 - `i3/` — `config` + numbered `conf.d/` modules (see header of `i3/config`).
 - One top-level dir per app (`kitty/`, `alacritty/`, `rofi/`, `dunst/`, `starship/`, …), plus `shell/` (bash integration), `bin/` (helper scripts → `~/.local/bin`).
 - `~/.config/wallpapers/` is yours: install.sh only creates it if missing, and `bin/x11-wallpaper` picks a
-  random image from it on every i3 start and reload. It always clears the root window to a solid colour
-  first (via `xorg-xsetroot`), so a repeat run is visible and stale tiling cannot survive. `$mod+Shift+r`
-  is `i3-msg reload`, which re-runs it; `x11-wallpaper --reset` only unsets, without refilling.
+  random image from it on every i3 start and reload. `$mod+Shift+r` is `i3-msg reload`, which re-runs it.
 - `install.sh` installs missing packages (pacman), enables `spice-vdagentd.socket`,
   symlinks the dots, then validates with `i3 -C`. It is the source of truth for the
   package list; keep it in sync with this file.

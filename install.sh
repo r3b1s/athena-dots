@@ -49,7 +49,6 @@ PKGS=(
     xorg-xinit                      # startx / xinit
     xorg-xrandr                     # monitor size, set by bin/x11-monitor
     xorg-xauth                      # X authentication (ly and startx)
-    xorg-xsetroot                   # unset the wallpaper, used by bin/x11-wallpaper
     ly                              # display manager; runs i3 (see AGENTS.md)
 )
 

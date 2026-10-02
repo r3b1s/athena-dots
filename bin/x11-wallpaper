@@ -1,33 +1,13 @@
 #!/bin/sh
 # Set a random wallpaper from ~/.config/wallpapers (override with the first
 # argument). Run by i3 via exec_always, so $mod+Shift+r (i3-msg reload) picks a
-# new one. It must never fail the reload, and it should always say what it did:
-# with a single image, or an empty folder, silence would look like a dead key.
+# new one.
 #
-# Usage:
-#   x11-wallpaper [DIR]     unset the root window, then fill it with a random image
-#   x11-wallpaper --reset   unset only (solid theme background)
-#
-# The unset matters. Re-running feh over an image that is already the wallpaper
-# is invisible when the image is unchanged, so the key looks broken. Clearing to
-# a solid colour first guarantees a visible transition, and clears the tiling
-# that a stale root-window image leaves behind.
+# Deliberately plain: just fill the root window. An earlier version also cleared
+# the root window first and passed --bg-size, both to work around a geometry
+# problem that turned out to be a second X screen; --bg-size left a seam and
+# neither is needed now that bin/x11-monitor keeps one screen at one size.
 set -u
-
-# pinkrot background, so the gap during a reset is the theme's, not black.
-COLOR="#050007"
-
-reset_root() {
-    command -v xsetroot >/dev/null || return 0
-    xsetroot -solid "$COLOR" 2>/dev/null
-}
-
-case "${1:-}" in
-    --reset)
-        reset_root
-        exit 0
-        ;;
-esac
 
 dir="${1:-${XDG_CONFIG_HOME:-$HOME/.config}/wallpapers}"
 urgency="low"
@@ -40,10 +20,6 @@ notify() {
 
 if [ ! -d "$dir" ]; then
     echo "x11-wallpaper: no such directory: $dir" >&2
-    urgency="normal"
-    timeout=0
-    notify "no such folder: $dir"
-    reset_root
     exit 0
 fi
 
@@ -57,36 +33,12 @@ if [ -z "$wallpaper" ]; then
     echo "x11-wallpaper: no images in $dir ($count other file(s))" >&2
     urgency="normal"
     timeout=0
-    if [ "$count" -gt 0 ]; then
-        notify "no images in $dir (only $count other file(s))"
-    else
-        notify "no images in $dir"
-    fi
-    reset_root
+    notify "no images in $dir (only $count other file(s))"
     exit 0
 fi
 
-reset_root
-
-# Fill for the size of the display we are actually on, not for whatever the root
-# window happens to be. If a second screen is momentarily still enabled (see
-# bin/x11-monitor), --bg-fill alone would tile across it; --bg-size keeps the
-# image to one screen and lets feh solid-fill the remainder.
-screen_size() {
-    command -v xrandr >/dev/null || return 0
-    xrandr --query 2>/dev/null | awk '
-        $2 == "connected" { inblk = 1; next }
-        /^[^ 	]/          { inblk = 0 }
-        inblk && $2 ~ /\*/ { print $1; exit }'
-}
-
-set -- --bg-fill --no-fscreen
-size=$(screen_size)
-[ -n "$size" ] && set -- "$@" --bg-size "$size"
-
-if command -v feh >/dev/null && feh "$@" "$wallpaper"; then
-    notify "reset + $(basename "$wallpaper")"
+if command -v feh >/dev/null && feh --bg-fill "$wallpaper"; then
+    notify "$(basename "$wallpaper")"
 else
     echo "x11-wallpaper: feh failed for $wallpaper" >&2
-    exit 0
 fi
