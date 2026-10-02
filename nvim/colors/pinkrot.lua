@@ -1,5 +1,3 @@
-vim.g.colors_name = "pinkrot"
-
 local set = vim.api.nvim_set_hl
 local p = {
   bg = "#050007",
@@ -29,6 +27,11 @@ end
 
 vim.o.termguicolors = true
 vim.o.background = "dark"
+
+-- Set after "highlight clear", which resets g:colors_name. Setting it first
+-- (as this file did) left colors_name nil, so anything reading it - :colorscheme,
+-- statusline plugins, :hi - saw no scheme at all even though the colours applied.
+vim.g.colors_name = "pinkrot"
 
 local highlights = {
   Normal = { fg = p.fg, bg = p.bg },

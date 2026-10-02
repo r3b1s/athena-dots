@@ -251,6 +251,43 @@ install_ly_theme() {
     echo "ly theme: log out and back in to see it"
 }
 
+# Neovim colours.
+#
+# install_links() puts pinkrot.lua in ~/.config/nvim/colors/, but a colourscheme
+# file on its own does nothing: something has to select it, and a bare `neovim`
+# package has no init.lua at all. Without this the theme is installed and never
+# used, which is exactly how it looked in the VM.
+#
+# A managed block rather than a linked init.lua, because init.lua is the user's
+# file, and may already exist with a plugin manager in it. Nothing outside the
+# markers is touched.
+setup_nvim() {
+    local init="${XDG_CONFIG_HOME:-$HOME/.config}/nvim/init.lua"
+    local open="-- >>> athena-dots >>>"
+
+    # -e: the marker begins with "--", which grep would otherwise read as an option
+    if [ -f "$init" ] && grep -qF -e "$open" "$init"; then
+        echo "nvim: colourscheme already selected in $init"
+        return
+    fi
+
+    if [ "$dry" = 1 ]; then
+        echo "+ select the pinkrot colourscheme in $init"
+        return
+    fi
+
+    mkdir -p "$(dirname "$init")"
+    {
+        echo
+        echo "$open"
+        echo "-- Selects the pinkrot colourscheme linked into colors/."
+        echo "vim.opt.termguicolors = true"
+        echo 'pcall(vim.cmd.colorscheme, "pinkrot")'
+        echo "-- <<< athena-dots <<<"
+    } >> "$init"
+    echo "nvim: colourscheme selected in $init"
+}
+
 # Firefox: the Flame theme and Vimium, via enterprise policy.
 #
 # /etc/firefox/policies/policies.json is the documented system-wide location on
@@ -566,6 +603,7 @@ if [ "$do_packages" = 1 ]; then
     setup_dark_theme
     setup_gtk
     setup_firefox
+    setup_nvim
 fi
 [ "$do_links" = 1 ] && install_links
 
