@@ -1,0 +1,51 @@
+# alacritty. Kept as one file rather than split from its colours: alacritty
+# resolves `import` relative to the importing file, and a single file keeps the
+# theme and the settings that reference it (font, padding) in one place.
+#
+[env]
+TERM = "xterm-256color"
+
+[terminal]
+osc52 = "CopyPaste"
+
+[font]
+normal = { family = "JetBrainsMono Nerd Font", style = "Regular" }
+bold   = { family = "JetBrainsMono Nerd Font", style = "Bold" }
+italic = { family = "JetBrainsMono Nerd Font", style = "Italic" }
+size = 9
+
+[window]
+padding.x = 14
+padding.y = 14
+decorations = "None"
+
+[keyboard]
+bindings = [
+  { key = "Insert", mods = "Shift",   action = "Paste" },
+  { key = "Insert", mods = "Control", action = "Copy" },
+  { key = "Return", mods = "Shift",   chars = "\u001B\r" }
+]
+
+[colors.primary]
+background = "#050007"
+foreground = "#f17e97"
+
+[colors.normal]
+black   = "#050007"
+red     = "#8F0936"
+green   = "#AF0B39"
+yellow  = "#CE0D3C"
+blue    = "#E80F3E"
+magenta = "#D40D40"
+cyan    = "#F00F40"
+white   = "#f17e97"
+
+[colors.bright]
+black   = "#a85869"
+red     = "#8F0936"
+green   = "#AF0B39"
+yellow  = "#CE0D3C"
+blue    = "#E80F3E"
+magenta = "#D40D40"
+cyan    = "#F00F40"
+white   = "#f17e97"
