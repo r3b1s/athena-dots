@@ -8,8 +8,12 @@ The VM has no desktop environment. `ly` is the display manager: install.sh enabl
 at boot you get a login prompt on the virtual console. Pick `i3` as the session; it comes from i3-wm's
 `/usr/share/xsessions/i3.desktop`, which ly reads, so no extra session file is needed.
 
-`ly/config.ini` is linked to `~/.config/ly/config.ini` and merged over `/etc/ly/config.ini`. It only
-overrides colours and `numlock`. Autologin is deliberately not enabled: log in interactively.
+ly reads exactly one config file, `/etc/ly/config.ini`. The path is compiled into it and there is **no**
+`~/.config/ly/config.ini` fallback, so a per-user config does nothing. `install_ly_theme()` therefore merges
+`ly/pinkrot.ini` into that system file, keeping the packaged original at `/etc/ly/config.ini.athena-orig` and
+always re-merging from it, so repeat runs are idempotent. A `pacman -Syu` that upgrades ly restores the
+packaged file (or leaves a `.pacnew`); re-run the installer to put the theme back.
+Autologin is deliberately not enabled: log in interactively.
 
 `xorg-xinit` and `xorg-xauth` are still installed, so `startx /usr/bin/i3` works from a tty as a fallback
 when ly will not come up. Do not run a bare `startx` without naming i3: Arch's
@@ -37,21 +41,31 @@ the same eye feature at x=534 and again 1280px later. The host now boots with a 
 
 - `i3/` — `config` + numbered `conf.d/` modules (see header of `i3/config`).
 - One top-level dir per app (`kitty/`, `alacritty/`, `rofi/`, `dunst/`, `starship/`, …), plus `shell/` (bash integration), `bin/` (helper scripts → `~/.local/bin`).
-- `~/.config/wallpapers/` is yours: install.sh only creates it if missing, and `bin/x11-wallpaper` picks a
-  random image from it on every i3 start and reload. `$mod+Shift+r` is `i3-msg reload`, which re-runs it.
+- `~/.config/wallpapers/` is yours: `install.sh` creates it and seeds `bleach_0.png` from the `r3b1s/wallpapers`
+  repo on first run, without ever overwriting an existing file. `bin/x11-wallpaper` picks a random image from
+  it (jpg/jpeg/png/webp/bmp) on every i3 start and reload. `$mod+Shift+r` is `i3-msg reload`, which re-runs it.
+  A failed download is a warning, not a failure.
 - `install.sh` installs missing packages (pacman), enables `spice-vdagentd.socket`,
   symlinks the dots, then validates with `i3 -C`. It is the source of truth for the
   package list; keep it in sync with this file.
-- Runtime helpers beyond the list above: jq, xdotool, maim, xclip, xcolor, feh (random wallpaper), numlockx,
+- System dark mode: `setup_dark_theme()` in `install.sh` sets dconf `color-scheme=prefer-dark` and
+  `gtk-theme=Adwaita-dark`, and enables the `xdg-desktop-portal{,-gtk}` user services. GTK4 reads the first,
+  GTK3 the second, and sandboxed apps and Qt6 (qutebrowser) go through the portal. The portal backend is gated
+  on `XDG_CURRENT_DESKTOP`, which `i3/config` sets to `GNOME` for the session; see `bin/xdg-portal.conf`.
+  Run the installer from inside the i3 session, or the dconf half is skipped with instructions.
+- Runtime helpers beyond the list above: jq, maim, xclip, xcolor, feh (random wallpaper), numlockx,
   polkit-gnome, network-manager-applet, spice-vdagent, qemu-guest-agent, pipewire-pulse,
-  ttf-jetbrains-mono-nerd, starship, eza, zoxide, fzf, bat (previews `ff`), bash-completion.
+  ttf-jetbrains-mono-nerd, starship, eza, zoxide, fzf, bat (previews `ff`), bash-completion,
+  gsettings-desktop-schemas, dconf, xdg-desktop-portal, xdg-desktop-portal-gtk, adwaita-icon-theme, curl.
 - qutebrowser is installed ONLY as chaotic-aur/qutebrowser-git (no fallback; install.sh fails loudly if chaotic-aur is missing).
 - nix is for project-specific environments only: install.sh enables `nix-daemon.socket` and nothing else (no channels).
 - Guest is qemu/kvm/libvirt: no i3lock, no picom, no brightness/nightlight/screen recording.
 - Colours are the pinkrot theme throughout, kept inside each app's own dir: `i3/conf.d/01-pinkrot.conf` (window
   colours), `i3/conf.d/15-bar.conf` (bar colours; a `bar` block can't be split across includes),
   `kitty/pinkrot.conf`, `alacritty/alacritty.toml` (single file), `i3status-rust/themes/`, `rofi/`, `dunst/`,
-`qutebrowser/pinkrot.py`, `btop/`, `nvim/`, `ly/config.ini`.
+`qutebrowser/pinkrot.py`, `btop/`, `nvim/`; ly's is `ly/pinkrot.ini`, see "Starting i3".
+- Default terminal is alacritty (`set $terminal` in `i3/config`). Kitty stays installed and keeps its
+  pinkrot colours, but nothing in the config launches it and its remote-control socket is off.
 - `install.sh` links whole dirs for i3, kitty, alacritty, rofi, dunst, i3status-rust, shell; individual files for
   qutebrowser, btop, nvim and `starship/starship.toml` -> `~/.config/starship.toml` (those apps write runtime
   state next to their config).

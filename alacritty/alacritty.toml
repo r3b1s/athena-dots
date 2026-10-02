@@ -1,7 +1,8 @@
-# alacritty. Kept as one file rather than split from its colours: alacritty
-# resolves `import` relative to the importing file, and a single file keeps the
-# theme and the settings that reference it (font, padding) in one place.
-#
+# alacritty — the default terminal ($terminal in i3/config). Kept as one file
+# rather than split from its colours: alacritty resolves `import` relative to
+# the importing file, and a single file keeps the theme and the settings that
+# reference it (font, padding) in one place.
+
 [env]
 TERM = "xterm-256color"
 

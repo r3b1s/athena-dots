@@ -8,6 +8,12 @@ if command -v mise &> /dev/null; then
   eval "$(mise activate bash)"
 fi
 
+# xdg-desktop-portal gates its GTK backend (the one implementing
+# org.freedesktop.portal.Settings) on XDG_CURRENT_DESKTOP, and i3/config sets it
+# for everything i3 spawns. Repeat it here for shells that were already running
+# before a reload.
+export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-GNOME}"
+
 # bash-completion
 if [[ ! -v BASH_COMPLETION_VERSINFO && -f /usr/share/bash-completion/bash_completion ]]; then
   source /usr/share/bash-completion/bash_completion

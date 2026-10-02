@@ -18,5 +18,14 @@
 
 set $mod Mod4
 set $bin ~/.local/bin
-set $terminal kitty
+# Default terminal. alacritty/alacritty.toml carries the pinkrot colours.
+set $terminal alacritty
+
+# Bare session: name a desktop, so services that gate on it load. The GTK portal
+# backend is the one that implements org.freedesktop.portal.Settings, and its
+# gtk.portal declares `UseIn=gnome`, so without this it is skipped entirely and
+# anything asking the portal for the system colour scheme - qutebrowser included
+# - falls back to light. See bin/xdg-portal.conf and setup_dark_theme().
+set_environment XDG_CURRENT_DESKTOP GNOME
+
 include conf.d/*.conf
