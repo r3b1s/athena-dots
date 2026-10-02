@@ -1,0 +1,33 @@
+#!/bin/sh
+# x11-volume up|down|up-fine|down-fine|mute|mic-mute
+#
+# pactl volume control with a dunst progress-bar OSD (swayosd replacement).
+set -eu
+
+SINK=@DEFAULT_SINK@
+SOURCE=@DEFAULT_SOURCE@
+
+case "${1:-}" in
+    up)        pactl set-sink-mute "$SINK" 0; pactl set-sink-volume "$SINK" +5% ;;
+    down)      pactl set-sink-mute "$SINK" 0; pactl set-sink-volume "$SINK" -5% ;;
+    up-fine)   pactl set-sink-mute "$SINK" 0; pactl set-sink-volume "$SINK" +1% ;;
+    down-fine) pactl set-sink-mute "$SINK" 0; pactl set-sink-volume "$SINK" -1% ;;
+    mute)      pactl set-sink-mute "$SINK" toggle ;;
+    mic-mute)
+        pactl set-source-mute "$SOURCE" toggle
+        if pactl get-source-mute "$SOURCE" | grep -q yes; then
+            dunstify -a x11-volume -u low -r 9991 "Microphone muted"
+        else
+            dunstify -a x11-volume -u low -r 9991 "Microphone live"
+        fi
+        exit 0
+        ;;
+    *) echo "usage: x11-volume up|down|up-fine|down-fine|mute|mic-mute" >&2; exit 1 ;;
+esac
+
+vol=$(pactl get-sink-volume "$SINK" | awk -F/ 'NR==1 {gsub(/[ %]/, "", $2); print $2; exit}')
+if pactl get-sink-mute "$SINK" | grep -q yes; then
+    dunstify -a x11-volume -u low -r 9991 -h "int:value:$vol" "Volume muted (${vol}%)"
+else
+    dunstify -a x11-volume -u low -r 9991 -h "int:value:$vol" "Volume: ${vol}%"
+fi

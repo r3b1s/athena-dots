@@ -1,0 +1,22 @@
+# athena-dots i3 config — entry point, for AthenaOS (Arch-based) in a
+# qemu/kvm/libvirt guest.
+#
+# Variables must be defined before the includes so every module can use them.
+# conf.d/ loads in glob order. i3 resolves duplicate `bindsym` and `bar` as
+# FIRST wins and has no `unbindsym`, so never bind the same chord twice.
+#
+#   00-base.conf         font, borders, gaps
+#   01-pinkrot.conf      window colours (pinkrot)
+#   05-autostart.conf    daemons, tray applets, guest agents, wallpaper
+#   10-core.conf         focus / move / resize / layouts
+#   15-bar.conf          i3bar + i3status-rust
+#   20-workspaces.conf   numbered + named workspaces
+#   30-apps.conf         launchers, terminals, notifications, media, utilities
+#   40-modes.conf        gaps resize, passthrough
+#   70-apps.conf         application launch binds
+#
+
+set $mod Mod4
+set $bin ~/.local/bin
+set $terminal kitty
+include conf.d/*.conf

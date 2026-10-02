@@ -1,0 +1,30 @@
+#!/bin/sh
+# x11-ws-app <workspace> [command...]
+#
+# Toggle a named workspace, hyprland-special-workspace style:
+#   - if the workspace is already focused: jump back to the previous one
+#   - otherwise: switch to it, and if it's empty and a command was given,
+#     launch the command (hyprland's on_created_empty)
+set -eu
+
+ws="$1"
+shift
+
+focused=$(i3-msg -t get_workspaces | jq -r '.[] | select(.focused) | .name')
+
+if [ "$focused" = "$ws" ]; then
+    exec i3-msg workspace back_and_forth >/dev/null
+fi
+
+i3-msg "workspace --no-auto-back-and-forth \"$ws\"" >/dev/null
+
+if [ "$#" -gt 0 ]; then
+    windows=$(i3-msg -t get_tree | jq --arg ws "$ws" '
+        [recurse(.nodes[]?, .floating_nodes[]?)
+         | select(.type == "workspace" and .name == $ws)][0]
+        | [recurse(.nodes[]?, .floating_nodes[]?) | select(.window != null)]
+        | length')
+    if [ "${windows:-0}" -eq 0 ]; then
+        "$@" >/dev/null 2>&1 &
+    fi
+fi

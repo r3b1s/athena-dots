@@ -1,0 +1,25 @@
+#!/bin/sh
+# Show every i3 binding (with the comment above it, when present) in rofi.
+set -eu
+
+cfg="$HOME/.config/i3"
+
+awk '
+    /^[[:space:]]*#/ {
+        desc = $0
+        sub(/^[[:space:]]*#[[:space:]]*/, "", desc)
+        next
+    }
+    /^[[:space:]]*bind(sym|code)/ {
+        line = $0
+        sub(/^[[:space:]]*bind(sym|code)[[:space:]]+/, "", line)
+        sub(/[[:space:]]+--no-startup-id[[:space:]]+/, " ", line)
+        if (desc != "")
+            printf "%-70s # %s\n", line, desc
+        else
+            print line
+        desc = ""
+        next
+    }
+    { desc = "" }
+' "$cfg/config" "$cfg"/conf.d/*.conf | rofi -dmenu -i -p 'binds' >/dev/null || true

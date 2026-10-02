@@ -1,0 +1,20 @@
+#!/bin/sh
+# x11-vpn-ip [--copy]
+# Print the IPv4 address of the VPN interface (default tun0, override with
+# VPN_IFACE). With --copy, put it on the clipboard and send a notification.
+set -eu
+
+iface="${VPN_IFACE:-tun0}"
+ip=$(ip -4 -o addr show dev "$iface" 2>/dev/null | awk '{sub(/\/.*/, "", $4); print $4; exit}')
+
+if [ -z "$ip" ]; then
+    [ "${1:-}" = --copy ] && dunstify -a athena-dots -u low "No address on $iface"
+    exit 1
+fi
+
+if [ "${1:-}" = --copy ]; then
+    printf '%s' "$ip" | xclip -selection clipboard
+    dunstify -a athena-dots -r 9992 "VPN IP copied" "$ip"
+else
+    echo "$ip"
+fi

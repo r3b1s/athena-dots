@@ -1,0 +1,23 @@
+#!/bin/sh
+# x11-screenshot region|full
+#
+# maim screenshots (grim/slurp replacement).
+#   region: interactive selection, copied to the clipboard
+#   full:   whole screen, saved to ~/Pictures and copied to the clipboard
+set -eu
+
+case "${1:-region}" in
+    region)
+        maim -s -u | xclip -selection clipboard -t image/png
+        dunstify -a x11-screenshot "Screenshot" "Region copied to clipboard"
+        ;;
+    full)
+        dir="${XDG_PICTURES_DIR:-$HOME/Pictures}"
+        mkdir -p "$dir"
+        file="$dir/screenshot-$(date +%Y-%m-%d_%H-%M-%S).png"
+        maim -u "$file"
+        xclip -selection clipboard -t image/png < "$file"
+        dunstify -a x11-screenshot "Screenshot" "Saved $file"
+        ;;
+    *) echo "usage: x11-screenshot region|full" >&2; exit 1 ;;
+esac

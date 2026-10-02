@@ -1,0 +1,25 @@
+#!/bin/sh
+# Set a random wallpaper from ~/.config/wallpapers (override with the first
+# argument). Run by i3 via exec_always, so it must be quiet and cheap when
+# there is nothing to pick, and must never fail the reload.
+set -u
+
+dir="${1:-${XDG_CONFIG_HOME:-$HOME/.config}/wallpapers}"
+
+if [ ! -d "$dir" ]; then
+    echo "x11-wallpaper: no such directory: $dir" >&2
+    exit 0
+fi
+
+# shuf picks uniformly at random and exits non-zero when the input is empty,
+# which is how an empty or image-less directory is detected below.
+wallpaper=$(find "$dir" -maxdepth 1 -type f -not -name '.*' \
+    \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' -o -iname '*.bmp' \) \
+    -print 2>/dev/null | shuf -n 1)
+
+if [ -z "$wallpaper" ]; then
+    echo "x11-wallpaper: no images in $dir" >&2
+    exit 0
+fi
+
+exec feh --bg-fill "$wallpaper"

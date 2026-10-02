@@ -1,0 +1,33 @@
+# Tool integrations for bash: completion, prompt, directory jumping, fzf.
+# Each is skipped when its tool is not installed.
+
+# mise (version manager). Needs command hashing off, or bash caches a binary
+# path before mise has shimmed it and the shim is then never consulted.
+if command -v mise &> /dev/null; then
+  set +h
+  eval "$(mise activate bash)"
+fi
+
+# bash-completion
+if [[ ! -v BASH_COMPLETION_VERSINFO && -f /usr/share/bash-completion/bash_completion ]]; then
+  source /usr/share/bash-completion/bash_completion
+fi
+
+# starship (the config is starship/starship.toml)
+if [[ ${TERM:-} != "dumb" ]] && command -v starship &> /dev/null; then
+  eval "$(starship init bash --print-full-init)"
+fi
+
+# zoxide (provides `z`, used by the cd wrapper in ./aliases)
+if command -v zoxide &> /dev/null; then
+  eval "$(zoxide init bash)"
+fi
+
+# fzf: key bindings only (Ctrl-R, Ctrl-T, Alt-C). completion.bash is skipped on
+# purpose: it rewraps ~76 commands' completions at every shell start, adding
+# ~25ms before the prompt.
+if command -v fzf &> /dev/null; then
+  if [[ -f /usr/share/fzf/key-bindings.bash ]]; then
+    source /usr/share/fzf/key-bindings.bash
+  fi
+fi

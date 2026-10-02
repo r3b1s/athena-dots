@@ -1,0 +1,212 @@
+
+# If not running interactively, don't do anything (leave this at the top of this file)
+[[ $- != *i* ]] && return
+
+#### Aliases & Functions
+
+# File system
+if command -v eza &> /dev/null; then
+  alias ls='eza -lh --group-directories-first --icons=auto'
+  alias lsa='ls -a'
+  alias lt='eza --tree --level=2 --long --icons --git'
+  alias lta='lt -a'
+fi
+
+if command -v zoxide &> /dev/null; then
+  alias cd="zd"
+  zd() {
+    if (( $# == 0 )); then
+      builtin cd ~ || return
+    elif [[ -d $1 ]]; then
+      builtin cd "$1" || return
+    else
+      if ! z "$@"; then
+        echo "Error: Directory not found"
+        return 1
+      fi
+
+      printf "\U000F17A9 "
+      pwd
+    fi
+  }
+fi
+
+# fzf: ff = fuzzy file finder with preview; eff = open the pick in $EDITOR;
+# sff = scp the pick somewhere.
+if [[ "$TERM" == "xterm-kitty" ]]; then
+  alias ff="fzf --preview 'case \$(file --mime-type -b {}) in image/*) kitty icat --clear --transfer-mode=memory --stdin=no --place=\${FZF_PREVIEW_COLUMNS}x\${FZF_PREVIEW_LINES}@0x0 {} ;; *) bat --style=numbers --color=always {} ;; esac'"
+else
+  alias ff="fzf --preview 'bat --style=numbers --color=always {}'"
+fi
+alias eff='$EDITOR "$(ff)"'
+sff() {
+  if [ $# -eq 0 ]; then echo "Usage: sff <destination> (e.g. sff host:/tmp/)"; return 1; fi
+  local file
+  file=$(find . -type f -printf '%T@\t%p\n' | sort -rn | cut -f2- | ff) && [ -n "$file" ] && scp "$file" "$1"
+}
+
+open() (
+  xdg-open "$@" >/dev/null 2>&1 &
+)
+
+# Compression
+compress() { tar -czf "${1%/}.tar.gz" "${1%/}"; }
+alias decompress="tar -xzf"
+
+# Directories
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+
+# Wipe & Shred History
+alias wipehist='history -c && shred -u ~/.bash_history'
+
+# Tools
+n() { if [ "$#" -eq 0 ]; then command nvim . ; else command nvim "$@"; fi; }
+
+# SSH Port Forwarding Functions
+fip() {
+  (( $# < 2 )) && echo "Usage: fip <host> <port1> [port2] ..." && return 1
+  local host="$1"
+  shift
+  for port in "$@"; do
+    ssh -f -N -L "$port:localhost:$port" "$host" && echo "Forwarding localhost:$port -> $host:$port"
+  done
+}
+#
+dip() {
+  (( $# == 0 )) && echo "Usage: dip <port1> [port2] ..." && return 1
+  for port in "$@"; do
+    pkill -f "ssh.*-L $port:localhost:$port" && echo "Stopped forwarding port $port" || echo "No forwarding on port $port"
+  done
+}
+#
+lip() {
+  pgrep -af "ssh.*-L [0-9]+:localhost:[0-9]+" || echo "No active forwards"
+}
+
+
+##############################
+##############################
+####     bash settings    ####
+##############################
+##############################
+
+set -o vi # vi mode
+
+
+
+##############################
+##############################
+####   Environment Vars   ####
+##############################
+##############################
+
+## System-Native ###########
+export EDITOR="nvim"
+export VISUAL="nvim"
+
+# Editor used by CLI
+export SUDO_EDITOR="$EDITOR"
+export BAT_THEME=ansi
+
+## AI - gemini-cli #########
+# export GEMINI_CLI_HOME="$USER/.gemini"
+# export GEMINI_SANDBOX=podman
+export GEMINI_TELEMETRY_ENABLED=false                   # Telemetry | Google Gemini CLI (inverted: false = disabled)
+
+## AI - RTK ################
+export RTK_TELEMETRY_DISABLED=1                         # Telemetry | Rust Token Killer
+
+## Shells ##################
+export POWERSHELL_TELEMETRY_OPTOUT=1                    # Telemetry | PowerShell
+
+## pkgMngr - npm ###########
+export NPM_CONFIG_FUND=false                            # Phone-Home | npm funding messages
+export NPM_CONFIG_AUDIT=false                           # Phone-Home | npm auto-audit on install
+export NPM_CONFIG_UPDATE_NOTIFIER=false                 # Telemetry | npm update nag
+
+## pkgMngr - homebrew ######
+export HOMEBREW_NO_ANALYTICS=1                          # Telemetry | Homebrew
+
+## pkgMngr - pip ###########
+export PIP_DISABLE_PIP_VERSION_CHECK=1                  # Telemetry | pip
+
+##*~~~~~~~~~~~~~~~~~~~~~~*##
+#      Misc. Telemetry     #
+##*~~~~~~~~~~~~~~~~~~~~~~*##
+
+## Generic Catch-Alls ######
+export DISABLE_TELEMETRY=1                              # Telemetry | generic best-effort
+export DO_NOT_TRACK=1                                   # Telemetry | console do-not-track standard
+
+## Misc. Software ##########
+#  - Included "just in case."
+#  - Not likely that all corresponding
+#    packages will be present on your
+#    system.
+
+## Cloud Providers #########
+export AZURE_CORE_COLLECT_TELEMETRY=0                   # Telemetry | Azure CLI
+export CHECKPOINT_DISABLE=1                             # Telemetry | HashiCorp tools (Terraform, Vault, Packer, Vagrant, Nomad, cdktf) + Prisma
+export GH_NO_TELEMETRY=1                                # Telemetry | GitHub CLI
+export SAM_CLI_TELEMETRY=0                              # Telemetry | AWS SAM CLI
+export WRANGLER_SEND_METRICS=false                      # Telemetry | Cloudflare Wrangler
+
+
+## Software Frameworks #####
+export DOTNET_CLI_TELEMETRY_OPTOUT=1                    # Telemetry | .NET CLI
+export DOTNET_UPGRADEASSISTANT_TELEMETRY_OPTOUT=1       # Telemetry | .NET Upgrade Assistant
+export ASTRO_TELEMETRY_DISABLED=1                       # Telemetry | Astro
+export NG_CLI_ANALYTICS=false                           # Telemetry | Angular CLI
+export EXPO_NO_TELEMETRY=1                              # Telemetry | Expo / React Native
+export GATSBY_TELEMETRY_DISABLED=1                      # Telemetry | Gatsby
+export NEXT_TELEMETRY_DISABLED=1                        # Telemetry | Next.js
+export NUXT_TELEMETRY_DISABLED=1                        # Telemetry | Nuxt
+export REDWOOD_TELEMETRY_DISABLED=1                     # Telemetry | RedwoodJS
+export SLS_TELEMETRY_DISABLED=1                         # Telemetry | Serverless Framework
+
+## Framework-Adjacent ######
+export STORYBOOK_DISABLE_TELEMETRY=1                    # Telemetry | Storybook
+export STORYBOOK_ENABLE_CRASH_REPORTS=0                 # Telemetry | Storybook crash reports (separate toggle)
+export TURBO_TELEMETRY_DISABLED=1                       # Telemetry | Turborepo
+
+## Infrastructure ###########
+export PULUMI_SKIP_UPDATE_CHECK=true                    # Telemetry | Pulumi version checks
+export PULUMI_DISABLE_AUTOMATIC_PLUGIN_ACQUISITION=true # Telemetry | Pulumi plugin fetch
+
+## Uncategorized
+export ALGOLIA_CLI_TELEMETRY=0                          # Telemetry | Algolia CLI (search platform)
+
+
+############
+#### init
+############
+
+# starship
+if [[ $- == *i* ]] && [[ ${TERM:-} != "dumb" ]] && command -v starship &> /dev/null; then
+  eval "$(starship init bash)"
+fi
+
+# zoxide
+if command -v zoxide &> /dev/null; then
+  eval "$(zoxide init bash)"
+fi
+
+# fzf
+if command -v fzf &> /dev/null; then
+  if [[ -f /usr/share/fzf/completion.bash ]]; then
+    source /usr/share/fzf/completion.bash
+  fi
+  if [[ -f /usr/share/fzf/key-bindings.bash ]]; then
+    source /usr/share/fzf/key-bindings.bash
+  fi
+fi
+
+# Autocompletion
+if [[ ! -v BASH_COMPLETION_VERSINFO && -f /usr/share/bash-completion/bash_completion ]]; then
+  source /usr/share/bash-completion/bash_completion
+fi
+
+
+[[ $- == *i* ]] && bind -f "/root/.inputrc"

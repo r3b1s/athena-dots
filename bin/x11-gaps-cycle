@@ -1,0 +1,17 @@
+#!/bin/sh
+# Cycle gap presets (inner:outer), mirroring the hyprland gaps cycle.
+set -eu
+
+STATE="${XDG_RUNTIME_DIR:-/tmp}/x11-gaps-cycle.idx"
+presets="6:100 6:50 15:30 10:20 5:10 4:8 3:6 2:4 0:0"
+
+count=$(set -- $presets; echo $#)   # word splitting is intended: presets is a list
+idx=$(cat "$STATE" 2>/dev/null || echo 0)
+idx=$(( idx % count + 1 ))
+preset=$(echo "$presets" | cut -d' ' -f"$idx")
+inner=${preset%:*}
+outer=${preset#*:}
+
+i3-msg "gaps inner all set $inner; gaps outer all set $outer" >/dev/null
+echo "$idx" > "$STATE"
+dunstify -a athena-dots -r 9994 "Window gaps: inner ${inner}px, outer ${outer}px"

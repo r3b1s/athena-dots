@@ -1,0 +1,67 @@
+# pinkrot theme for btop
+# Main background
+theme[main_bg]="#050007"
+
+# Main text color
+theme[main_fg]="#f17e97"
+
+# Title color
+theme[title]="#D40D40"
+
+# Highlight color for keyboard shortcuts
+theme[hi_fg]="#F00F40"
+
+# Selected item background/foreground
+theme[selected_bg]="#a85869"
+theme[selected_fg]="#050007"
+
+# Inactive/disabled text
+theme[inactive_fg]="#a85869"
+
+# Process box color
+theme[proc_misc]="#D40D40"
+
+# Box outline color
+theme[cpu_box]="#AF0B39"
+theme[mem_box]="#AF0B39"
+theme[net_box]="#AF0B39"
+theme[proc_box]="#AF0B39"
+
+# Graph colors (gradient)
+theme[temp_start]="#AF0B39"
+theme[temp_mid]="#CE0D3C"
+theme[temp_end]="#F00F40"
+
+theme[cpu_start]="#AF0B39"
+theme[cpu_mid]="#CE0D3C"
+theme[cpu_end]="#F00F40"
+
+theme[free_start]="#AF0B39"
+theme[free_mid]="#CE0D3C"
+theme[free_end]="#F00F40"
+
+theme[cached_start]="#AF0B39"
+theme[cached_mid]="#CE0D3C"
+theme[cached_end]="#F00F40"
+
+theme[available_start]="#AF0B39"
+theme[available_mid]="#CE0D3C"
+theme[available_end]="#F00F40"
+
+theme[used_start]="#AF0B39"
+theme[used_mid]="#CE0D3C"
+theme[used_end]="#F00F40"
+
+theme[download_start]="#AF0B39"
+theme[download_mid]="#CE0D3C"
+theme[download_end]="#F00F40"
+
+theme[upload_start]="#AF0B39"
+theme[upload_mid]="#CE0D3C"
+theme[upload_end]="#F00F40"
+
+# Divider line color
+theme[div_line]="#a85869"
+
+# Meter background
+theme[meter_bg]="#a85869"

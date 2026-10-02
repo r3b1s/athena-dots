@@ -1,0 +1,54 @@
+[global]
+    monitor = 0
+    follow = mouse
+    width = 350
+    offset = 10x40
+    notification_limit = 5
+    progress_bar = true
+    indicate_hidden = yes
+    shrink = no
+    separator_height = 2
+    padding = 12
+    horizontal_padding = 12
+    frame_width = 2
+    frame_color = "#D40D40"
+    separator_color = frame
+    sort = yes
+    idle_threshold = 120
+    font = JetBrainsMono Nerd Font 10
+    line_height = 0
+    markup = full
+    format = "<b>%s</b>\n%b"
+    alignment = left
+    vertical_alignment = center
+    show_age_threshold = 60
+    word_wrap = yes
+    ellipsize = middle
+    ignore_newline = no
+    stack_duplicates = true
+    hide_duplicate_count = false
+    show_indicators = yes
+    icon_position = left
+    max_icon_size = 32
+    corner_radius = 0
+    mouse_left_click = close_current
+    mouse_middle_click = do_action
+    mouse_right_click = close_all
+
+[urgency_low]
+    background = "#050007"
+    foreground = "#a85869"
+    frame_color = "#a85869"
+    timeout = 5
+
+[urgency_normal]
+    background = "#050007"
+    foreground = "#f17e97"
+    frame_color = "#D40D40"
+    timeout = 5
+
+[urgency_critical]
+    background = "#8F0936"
+    foreground = "#f17e97"
+    frame_color = "#F00F40"
+    timeout = 5

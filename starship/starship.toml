@@ -1,0 +1,74 @@
+add_newline = true
+command_timeout = 200
+follow_symlinks = true
+format = """
+[\\[](bold cyan)$username[@](bold cyan)$hostname[\\[](bold cyan)[$directory]($style)[\\]](bold cyan)
+[$git_branch$git_status]($style)$character
+"""
+
+## custom dir ($PWD)
+# format = """
+# [\\[](bold cyan)$username[@](bold cyan)$hostname[\\[](bold cyan)[${custom.pwd}[\\]](bold cyan)
+# $git_branch$git_status]($style)$character
+# """
+
+[username]
+format = "[$user]($style)"
+show_always = true
+
+style_user = "bold cyan"
+[hostname]
+format = "[$hostname](bold cyan)[\\]](bold cyan)[$ssh_symbol](bold green)"
+ssh_only = false
+ssh_symbol = "\\[SSH\\]"
+disabled = false
+
+[character]
+## defaults
+# error_symbol = "[✗](bold cyan)"
+# success_symbol = "[❯](bold cyan)"
+error_symbol = "[✗](bold red)"
+success_symbol = "[\\$](bold cyan)"
+
+## Default dir config
+[directory]
+format = "[$path]($style)[$read_only]($read_only_style)"
+home_symbol = "~"
+truncate_to_repo = false
+truncation_length = 200
+truncation_symbol = "…/"
+# repo_root_style = "bold cyan"
+# repo_root_format = "[$repo_root]($repo_root_style)[$path]($style)[$read_only]($read_only_style)"
+
+## Using the full working dir #########
+# Disable the built-in directory module
+# [directory]
+# disabled = true
+
+# Replace it with a custom module
+# [custom.pwd]
+# command = "echo $PWD"
+# when = "true"
+# format = "[$output]($style)"
+# style = "bold cyan"
+# #####################################
+
+[git_branch]
+format = "[$branch]($style) "
+style = "italic cyan"
+
+[git_status]
+format     = '[$all_status]($style)'
+style      = "cyan"
+ahead      = "⇡${count} "
+diverged   = "⇕⇡${ahead_count}⇣${behind_count} "
+behind     = "⇣${count} "
+conflicted = " "
+up_to_date = " "
+untracked  = "? "
+modified   = " "
+stashed    = ""
+staged     = ""
+renamed    = ""
+deleted    = ""
+

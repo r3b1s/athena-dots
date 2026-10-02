@@ -1,0 +1,89 @@
+configuration {
+    modi: "drun,window,run";
+    font: "JetBrainsMono Nerd Font 11";
+    show-icons: true;
+    drun-display-format: "{name}";
+    location: 0;
+    display-drun: "Apps";
+    display-window: "Windows";
+}
+
+* {
+    bg:     #050007;
+    bg-row: #141218;
+    bg-alt: #000000;
+    fg:     #f17e97;
+    muted:  #a85869;
+    accent: #D40D40;
+    urgent: #8F0936;
+    background-color: @bg;
+    text-color:       @fg;
+}
+
+window {
+    border:       2px;
+    border-color: @accent;
+    padding:      0;
+    width:        34em;
+}
+
+mainbox {
+    padding:  10px;
+    children: [ inputbar, listview ];
+}
+
+inputbar {
+    children: [ prompt, entry ];
+    spacing:  8px;
+    padding:  6px;
+}
+
+prompt {
+    text-color: @accent;
+}
+
+entry {
+    text-color:       @fg;
+    placeholder-color: @muted;
+}
+
+listview {
+    lines:   16;
+    padding: 4px 0 0 0;
+}
+
+element {
+    padding: 6px 8px;
+    background-color: @bg-row;
+    text-color: @fg;
+}
+
+element normal.normal {
+    background-color: @bg-row;
+    text-color:       @fg;
+}
+
+element alternate.normal {
+    background-color: @bg-alt;
+    text-color:       @fg;
+}
+
+element selected.normal {
+    background-color: @accent;
+    text-color:       @bg;
+}
+
+element normal.urgent {
+    background-color: @bg-row;
+    text-color: @urgent;
+}
+
+element alternate.urgent {
+    background-color: @bg-alt;
+    text-color:       @urgent;
+}
+
+element selected.urgent {
+    background-color: @urgent;
+    text-color:       @fg;
+}

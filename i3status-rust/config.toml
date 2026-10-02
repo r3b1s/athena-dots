@@ -1,0 +1,139 @@
+[icons]
+icons = "material-nf"
+
+[theme]
+theme = "pinkrot"
+
+# VPN: shows the tun0 address (HTB / THM / OpenVPN), hidden when it is down.
+# Left-click copies the IP to the clipboard, ready to paste into a payload.
+[[block]]
+block = "net"
+device = "tun0"
+format = " VPN $ip "
+missing_format = ""
+interval = 5
+[[block.click]]
+button = "left"
+cmd = "~/.local/bin/x11-vpn-ip --copy"
+[block.theme_overrides]
+idle_bg = "#8F0936"
+idle_fg = "#fff0f7"
+info_bg = "#8F0936"
+info_fg = "#fff0f7"
+good_bg = "#8F0936"
+good_fg = "#fff0f7"
+warning_bg = "#8F0936"
+warning_fg = "#fff0f7"
+critical_bg = "#8F0936"
+critical_fg = "#fff0f7"
+
+[[block]]
+block = "net"
+format = " $icon {$signal_strength $ssid $frequency|Wired} via $device "
+format_alt = " $icon {$ip|Down} "
+interval = 10
+[block.theme_overrides]
+start_separator = ""
+start_separator_bg = "#050007"
+start_separator_fg = "#050007"
+idle_bg = "#d10a0a"
+idle_fg = "#ffd4e5"
+info_bg = "#d10a0a"
+info_fg = "#fff0f7"
+good_bg = "#d10a0a"
+good_fg = "#fff3f9"
+warning_bg = "#d10a0a"
+warning_fg = "#fff3f9"
+critical_bg = "#d10a0a"
+critical_fg = "#fff3f9"
+
+[[block]]
+block = "disk_space"
+path = "/"
+info_type = "available"
+alert_unit = "GB"
+interval = 30
+warning = 20.0
+alert = 10.0
+format = " $icon $available.eng(w:2) "
+[block.theme_overrides]
+idle_bg = "#4b1724"
+idle_fg = "#ffd1dc"
+info_bg = "#6f2032"
+info_fg = "#fff0f5"
+warning_bg = "#a11f43"
+warning_fg = "#fff1f6"
+critical_bg = "#cf2453"
+critical_fg = "#fff2f7"
+
+[[block]]
+block = "memory"
+format = " $icon $mem_total_used_percents.eng(w:2) "
+format_alt = " $icon_swap $swap_used_percents.eng(w:2) "
+interval = 5
+[block.theme_overrides]
+idle_bg = "#351326"
+idle_fg = "#ffd6e6"
+info_bg = "#531a37"
+info_fg = "#fff0f6"
+warning_bg = "#8b1f4f"
+warning_fg = "#fff1f7"
+critical_bg = "#b32663"
+critical_fg = "#fff2f8"
+
+[[block]]
+block = "cpu"
+interval = 5
+info_cpu = 20
+warning_cpu = 50
+critical_cpu = 90
+[block.theme_overrides]
+idle_bg = "#4e1526"
+idle_fg = "#ffc7d5"
+info_bg = "#7a1230"
+info_fg = "#fff0f4"
+warning_bg = "#b31f4a"
+warning_fg = "#fff2f6"
+critical_bg = "#d40d40"
+critical_fg = "#fff0f4"
+
+[[block]]
+block = "load"
+format = " $icon $1m.eng(w:4) "
+interval = 5
+[block.theme_overrides]
+idle_bg = "#43111c"
+idle_fg = "#ffd4dc"
+info_bg = "#62182a"
+info_fg = "#fff0f4"
+warning_bg = "#971d3a"
+warning_fg = "#fff1f5"
+critical_bg = "#c32247"
+critical_fg = "#fff2f6"
+
+[[block]]
+block = "sound"
+format = " $icon $volume "
+[block.theme_overrides]
+idle_bg = "#6b0708"
+idle_fg = "#ffd1ff"
+info_bg = "#970a0b"
+info_fg = "#fff0ff"
+warning_bg = "#c10d0e"
+warning_fg = "#fff3ff"
+
+[[block]]
+block = "time"
+interval = 5
+format = " $icon $timestamp.datetime(f:'%a %d %b %R') "
+[block.theme_overrides]
+idle_bg = "#050007"
+idle_fg = "#ffd6e3"
+info_bg = "#050007"
+info_fg = "#fff0f6"
+good_bg = "#050007"
+good_fg = "#fff0f6"
+warning_bg = "#050007"
+warning_fg = "#fff0f6"
+critical_bg = "#050007"
+critical_fg = "#fff0f6"

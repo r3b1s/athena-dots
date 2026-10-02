@@ -1,0 +1,12 @@
+#!/bin/sh
+# System menu via rofi: suspend / logout / reboot / poweroff.
+set -eu
+
+choice=$(printf 'suspend\nlogout\nreboot\npoweroff\n' | rofi -dmenu -i -p 'system') || exit 0
+
+case "$choice" in
+    suspend)  exec systemctl suspend ;;
+    logout)   exec i3-msg exit ;;
+    reboot)   exec systemctl reboot ;;
+    poweroff) exec systemctl poweroff ;;
+esac
