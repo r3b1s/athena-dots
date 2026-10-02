@@ -36,6 +36,21 @@ has_mode() {
         END { exit !found }' r="$2"
 }
 # The current-mode marker (*) rides on the refresh rate: "1920x1080 60.00*+".
+# The geometry is the field shaped like "1920x1080+0+0", not a fixed position:
+# "primary" and "rotate"/"reflect" keywords shift it around.
+active_pos() {
+    printf '%s\n' "$QUERY" | awk -v out="$1" '
+        $1 == out && $2 == "connected" {
+            for (i = 1; i <= NF; i++)
+                if ($i ~ /^[0-9]+x[0-9]+\+[0-9]+\+[0-9]+$/) {
+                    pos = $i
+                    sub(/^[0-9]+x[0-9]+\+/, "", pos)
+                    print "+" pos      # xrandr writes "+0+0"; keep that form
+                    exit
+                }
+        }'
+}
+
 active_mode() {
     modes "$1" | awk '$2 ~ /\*/ { print $1; exit }'
 }
@@ -44,6 +59,21 @@ modes() {
         $1 == out && $2 == "connected" { inblk = 1; next }
         /^[^ \t]/                      { inblk = 0 }
         inblk && $1 ~ /^[0-9]+x[0-9]+$/ { print }'
+}
+
+# The X screen ("framebuffer") is not automatically the size of the output.
+# When it is larger - which is what a second login in SPICE tends to leave -
+# feh fills the whole oversized root window, so the wallpaper looks off-centre
+# and tiles along the gap. Both need correcting, not just the mode.
+fb_size() {
+    printf '%s\n' "$QUERY" | awk '/^Screen/ {
+        for (i = 1; i <= NF; i++)
+            if ($i == "current") {
+                gsub(/,/, "", $(i + 3))
+                print $(i + 1) "x" $(i + 3)
+                exit
+            }
+    }'
 }
 
 OUTS=$(outputs)
@@ -60,10 +90,21 @@ for out in $OUTS; do
         xrandr --addmode "$out" "1920x1080_60" >/dev/null 2>&1
     fi
 
-    if [ "$(active_mode "$out")" != "$RES" ]; then
-        xrandr --output "$out" --mode "$RES" --rate "$RATE" >/dev/null 2>&1 && changed=1
+    # --pos 0x0 keeps the output anchored; a leftover offset is what makes the
+    # wallpaper appear to tile along an edge.
+    if [ "$(active_mode "$out")" != "$RES" ] || [ "$(active_pos "$out")" != "+0+0" ]; then
+        xrandr --output "$out" --mode "$RES" --rate "$RATE" --pos 0x0 >/dev/null 2>&1 && changed=1
     fi
 done
+
+# Shrink the screen back to fit its outputs. --fbauto is a no-op when it already
+# matches, which keeps a correct setup from flickering on every reload.
+if [ "$(fb_size)" != "$RES" ]; then
+    if xrandr --fbauto >/dev/null 2>&1 || xrandr --fb "$RES" >/dev/null 2>&1; then
+        echo "x11-monitor: framebuffer $(fb_size) -> $RES" >&2
+        changed=1
+    fi
+fi
 
 if [ "$changed" = 1 ] && command -v dunstify >/dev/null; then
     dunstify -a athena-dots "Monitor set" "$RES @ ${RATE}Hz"

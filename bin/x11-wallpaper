@@ -3,7 +3,31 @@
 # argument). Run by i3 via exec_always, so $mod+Shift+r (i3-msg reload) picks a
 # new one. It must never fail the reload, and it should always say what it did:
 # with a single image, or an empty folder, silence would look like a dead key.
+#
+# Usage:
+#   x11-wallpaper [DIR]     unset the root window, then fill it with a random image
+#   x11-wallpaper --reset   unset only (solid theme background)
+#
+# The unset matters. Re-running feh over an image that is already the wallpaper
+# is invisible when the image is unchanged, so the key looks broken. Clearing to
+# a solid colour first guarantees a visible transition, and clears the tiling
+# that a stale root-window image leaves behind.
 set -u
+
+# pinkrot background, so the gap during a reset is the theme's, not black.
+COLOR="#050007"
+
+reset_root() {
+    command -v xsetroot >/dev/null || return 0
+    xsetroot -solid "$COLOR" 2>/dev/null
+}
+
+case "${1:-}" in
+    --reset)
+        reset_root
+        exit 0
+        ;;
+esac
 
 dir="${1:-${XDG_CONFIG_HOME:-$HOME/.config}/wallpapers}"
 urgency="low"
@@ -19,6 +43,7 @@ if [ ! -d "$dir" ]; then
     urgency="normal"
     timeout=0
     notify "no such folder: $dir"
+    reset_root
     exit 0
 fi
 
@@ -37,11 +62,14 @@ if [ -z "$wallpaper" ]; then
     else
         notify "no images in $dir"
     fi
+    reset_root
     exit 0
 fi
 
-if command -v feh >/dev/null && feh --bg-fill "$wallpaper"; then
-    notify "$(basename "$wallpaper")"
+reset_root
+
+if command -v feh >/dev/null && feh --bg-fill --no-fscreen "$wallpaper"; then
+    notify "reset + $(basename "$wallpaper")"
 else
     echo "x11-wallpaper: feh failed for $wallpaper" >&2
     exit 0

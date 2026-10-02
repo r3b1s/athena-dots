@@ -26,12 +26,19 @@ A headless VM otherwise comes up at whatever size the last SPICE client asked fo
 1080p already, the script just selects it; otherwise it adds a CEA 1080p60 modeline first. Passing another
 size, e.g. `$bin/x11-monitor 2560x1440`, works only if the output already lists that mode.
 
+It also anchors the output at `+0+0` and shrinks the X framebuffer with `--fbauto` when the screen is
+larger than the output. Without that, a second login leaves the framebuffer at the size SPICE handed the
+previous session, feh fills the oversized root window, and the wallpaper looks off-centre and tiles along
+the gap.
+
 ## Layout and install
 
 - `i3/` — `config` + numbered `conf.d/` modules (see header of `i3/config`).
 - One top-level dir per app (`kitty/`, `rofi/`, `dunst/`, `starship/`, …), plus `shell/` (bash integration), `bin/` (helper scripts → `~/.local/bin`).
 - `~/.config/wallpapers/` is yours: install.sh only creates it if missing, and `bin/x11-wallpaper` picks a
-  random image from it on every i3 start/reload. `$mod+Shift+r` reloads i3 to reshuffle.
+  random image from it on every i3 start and reload. It always clears the root window to a solid colour
+  first (via `xorg-xsetroot`), so a repeat run is visible and stale tiling cannot survive. `$mod+Shift+r`
+  is `i3-msg reload`, which re-runs it; `x11-wallpaper --reset` only unsets, without refilling.
 - `install.sh` installs missing packages (pacman), enables `spice-vdagentd.socket`,
   symlinks the dots, then validates with `i3 -C`. It is the source of truth for the
   package list; keep it in sync with this file.
