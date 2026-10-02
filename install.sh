@@ -61,17 +61,17 @@ PKGS+=(
     maim xclip xcolor                # screenshots, clipboard, colour picker
     feh                              # wallpaper, set by bin/x11-wallpaper
     numlockx
-    libnotify                        # notify-send, for convenience in scripts
+    libnotify                        # dunstify links against it (dunst's optdep); the OSDs use it
     curl                             # fetches the seeded wallpaper
 
     # System-wide dark mode. There is no desktop here, so dconf is the system
     # theme: GTK4/libadwaita read it directly, and the portal reads it for
-    # everything sandboxed (see setup_dark_theme and xdg-portal.conf).
+    # everything sandboxed (see setup_dark_theme).
     gsettings-desktop-schemas        # without this the color-scheme key does not exist
     dconf                            # the store gsettings writes to
     xdg-desktop-portal               # org.freedesktop.portal.Settings
     xdg-desktop-portal-gtk           # its backend; the one that implements Settings
-    adwaita-icon-theme               # provides Adwaita-dark
+    adwaita-icon-theme               # the base icon theme pinkrot inherits from
     pipewire-pulse                   # pactl, used by x11-volume
     ttf-jetbrains-mono-nerd          # font used by the terminals / i3 / bar
     starship                         # shell prompt (config in starship/)
@@ -250,15 +250,108 @@ install_ly_theme() {
     echo "ly theme: log out and back in to see it"
 }
 
+# Set a key in an INI file, creating the file and its [Settings] section as
+# needed. Used for the GTK settings files, which are plain INI and may already
+# exist with the user's own keys.
+ini_set() {
+    local file="$1" key="$2" value="$3"
+    [ "$dry" = 1 ] && { echo "+ set $key=$value in $file"; return; }
+    mkdir -p "$(dirname "$file")"
+    if [ ! -f "$file" ]; then
+        printf '[Settings]\n%s=%s\n' "$key" "$value" > "$file"
+        return
+    fi
+    if grep -qE "^[[:space:]]*${key}[[:space:]]*=" "$file"; then
+        sed -i -E "s|^[[:space:]]*${key}[[:space:]]*=.*|${key}=${value}|" "$file"
+    elif grep -qE "^\[Settings\]" "$file"; then
+        # insert directly after the [Settings] header, not at the end of the
+        # file, so a later section cannot claim the key
+        awk -v k="$key" -v v="$value" '
+            { print }
+            /^\[Settings\]/ && !done { print k "=" v; done = 1 }
+        ' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+    else
+        printf '\n[Settings]\n%s=%s\n' "$key" "$value" >> "$file"
+    fi
+}
+
+# GTK theme and icon theme.
+#
+# GTK does not read org.gnome.desktop.interface for either of these. It reads the
+# XSETTINGS protocol, which a desktop session publishes via a settings daemon.
+# There is none here, so the gsettings values that setup_dark_theme() writes are
+# ignored by GTK and it falls back to Adwaita light and the hicolor icons.
+# Confirmed on the VM with Gtk.IconTheme: nm-device-wired resolved to
+# /usr/share/icons/hicolor/... however gsettings was set. GTK does read
+# ~/.config/gtk-{3,4}.0/settings.ini directly, which fixes it, and is also what
+# finally makes GTK3 apps dark.
+#
+# The icon theme is generated from the symbolic NetworkManager icons shipped by
+# the package, recoloured to pinkrot, so no icon files live in this repo. Each
+# one is written under both the plain and the "-symbolic" name: nm-applet asks
+# for the plain name (it never references "-symbolic"), and that is what replaces
+# its pastel hardware illustration in the i3bar tray with a pinkrot glyph.
+PINKROT_FG="#f17e97"
+PINKROT_ICON_SRC="${PINKROT_ICON_SRC:-/usr/share/icons/hicolor/scalable/apps}"
+
+setup_gtk() {
+    local icons="$HOME/.local/share/icons/pinkrot"
+    local f base count=0
+
+    if [ -d "$PINKROT_ICON_SRC" ]; then
+        if [ "$dry" = 0 ]; then mkdir -p "$icons/scalable/apps"; fi
+        for f in "$PINKROT_ICON_SRC"/nm-*-symbolic.svg; do
+            [ -e "$f" ] || continue
+            base=$(basename "$f" -symbolic.svg)
+            count=$((count + 1))
+            # Skip the work entirely under --dry-run: a redirection is performed
+            # by the shell before run() is called, so it cannot be intercepted.
+            [ "$dry" = 1 ] && continue
+            sed -e "s/fill=\"#474747\"/fill=\"$PINKROT_FG\"/" \
+                -e "s/fill=\"#bebebe\"/fill=\"$PINKROT_FG\"/" "$f" \
+                > "$icons/scalable/apps/$base.svg"
+            cp "$icons/scalable/apps/$base.svg" "$icons/scalable/apps/$base-symbolic.svg"
+        done
+        if [ "$dry" = 1 ]; then
+            echo "+ write $icons/index.theme ($count icons)"
+        else
+            printf '[Icon Theme]\nName=pinkrot\nComment=NetworkManager icons recoloured for pinkrot\nInherits=Adwaita,hicolor\nDirectories=scalable/apps\n\n[scalable/apps]\nSize=16\nType=Scalable\n' > "$icons/index.theme"
+            gtk-update-icon-cache -q -t -f "$icons" 2>/dev/null || true
+            echo "icon theme: $count NetworkManager icons -> $icons"
+        fi
+    else
+        warn "no $PINKROT_ICON_SRC; skipping the pinkrot icon theme"
+    fi
+
+    local cfg="${XDG_CONFIG_HOME:-$HOME/.config}"
+    local dir
+    for dir in gtk-3.0 gtk-4.0; do
+        # "Adwaita" plus prefer-dark, NOT "Adwaita-dark": there is no theme by
+        # that name in GTK3, and naming one that does not exist makes GTK fall
+        # back to *light* Adwaita without a word. Verified on the VM: the menu
+        # background was #F6F5F4 with Adwaita-dark and #353535 with Adwaita +
+        # gtk-application-prefer-dark-theme=1.
+        ini_set "$cfg/$dir/settings.ini" gtk-theme-name Adwaita
+        ini_set "$cfg/$dir/settings.ini" gtk-icon-theme-name pinkrot
+        ini_set "$cfg/$dir/settings.ini" gtk-application-prefer-dark-theme 1
+    done
+    [ "$dry" = 1 ] || echo "gtk: Adwaita (dark), icon theme pinkrot ($cfg/gtk-{3,4}.0/settings.ini)"
+}
+
 # Make the session read as dark.
 #
-# Two halves, and both are needed:
-#   * dconf. color-scheme is what GTK4 and libadwaita read directly; gtk-theme
-#     is what GTK3 reads, since GTK3 has no notion of color-scheme.
+# Two halves, and neither is what GTK itself uses - GTK reads XSETTINGS, which
+# nothing publishes here. See setup_gtk() for that; this is for everything else:
+#   * dconf. color-scheme is what GTK4/libadwaita and Qt consult, and what a
+#     desktop would normally republish over XSETTINGS.
 #   * the portal. Sandboxed apps and Qt6 (qutebrowser) ask
 #     org.freedesktop.portal.Settings instead of reading dconf, and that only
-#     works if the backend is running - see xdg-portal.conf for why it needs
-#     XDG_CURRENT_DESKTOP=GNOME.
+#     works if the backend is running, which needs XDG_CURRENT_DESKTOP to name a
+#     desktop the backend is registered for: gtk.portal declares UseIn=gnome.
+#     Check it with:
+#       busctl --user call org.freedesktop.portal.Desktop \
+#         /org/freedesktop/portal/desktop org.freedesktop.portal.Settings \
+#         ReadOne ss org.gnome.desktop.interface color-scheme
 #
 # Best run from inside the desktop session, since both halves need the session
 # bus. Run from a bare tty and it explains what to do instead.
@@ -269,14 +362,16 @@ setup_dark_theme() {
         warn "no session bus: cannot set the system colour scheme from here."
         warn "Run these inside the i3 session to finish:"
         warn "  gsettings set org.gnome.desktop.interface color-scheme prefer-dark"
-        warn "  gsettings set org.gnome.desktop.interface gtk-theme Adwaita-dark"
+        warn "  gsettings set org.gnome.desktop.interface gtk-theme Adwaita"
         warn "  systemctl --user enable --now xdg-desktop-portal.service xdg-desktop-portal-gtk.service"
         return
     fi
 
     say "Setting the system colour scheme to dark"
     run gsettings set org.gnome.desktop.interface color-scheme prefer-dark
-    run gsettings set org.gnome.desktop.interface gtk-theme Adwaita-dark
+    run gsettings set org.gnome.desktop.interface gtk-theme Adwaita
+    # GTK itself ignores this (see setup_gtk), but other consumers read it.
+    run gsettings set org.gnome.desktop.interface icon-theme pinkrot
 
     if command -v systemctl >/dev/null; then
         # The gtk portal backend is gated on XDG_CURRENT_DESKTOP; i3/config sets
@@ -434,6 +529,7 @@ if [ "$do_packages" = 1 ]; then
     enable_services
     enable_nix
     setup_dark_theme
+    setup_gtk
 fi
 [ "$do_links" = 1 ] && install_links
 
