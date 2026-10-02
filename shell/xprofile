@@ -10,4 +10,11 @@
 #
 # Harmless for GTK, which ignores the extra token, but it is a lie either way:
 # naming GNOME is simply the only way to get that portal backend loaded here.
-export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-GNOME}"
+# Appended, not defaulted: ly sets XDG_CURRENT_DESKTOP=i3 from the session file
+# before sourcing this, so a `${XDG_CURRENT_DESKTOP:-GNOME}` default would never
+# fire and the portal would still skip its GTK backend. The value is a
+# colon-separated list, and the portal matches any of its tokens.
+case ":${XDG_CURRENT_DESKTOP:-}:" in
+    *:GNOME:*) ;;
+    *) export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:+$XDG_CURRENT_DESKTOP:}GNOME" ;;
+esac
