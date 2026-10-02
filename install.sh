@@ -41,6 +41,11 @@ PKGS=(
     i3-wm i3status-rust autotiling   # window manager, bar, auto-split
     rofi dunst kitty neovim btop     # launcher, notifications, terminal, editor, monitor
     mise nix                         # package / language managers
+
+    # No display manager: the X server is started per session with `startx`
+    # (i3-wm does not depend on either of these). See AGENTS.md, "Starting i3".
+    xorg-server                     # the X server itself
+    xorg-xinit                      # startx / xinit
 )
 
 # What the config calls at runtime.

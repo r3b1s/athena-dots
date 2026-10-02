@@ -2,6 +2,21 @@ These dotfiles are intended to set up a custom [AthenaOS](https://athenaos.org/)
 
 AthenaOS is downstream of arch linux and has access to all official Arch repos. It also has access to the blackarch repos and chaotic-aur repos.
 
+## Starting i3
+
+The VM has no display manager and no desktop environment. `xorg-server` and `xorg-xinit` are installed, so
+the session is started by hand from a TTY:
+
+    startx /usr/bin/i3
+
+There is deliberately no `~/.xinitrc` managed here yet, and no autologin. `i3-wm` does not depend on
+`xorg-server`, which is why both are in the package list. Arch's `/etc/X11/xinit/xinitrc` falls back to
+`twm`/`xclock`, so do not run a bare `startx` without naming i3.
+
+The display is SPICE (virt-manager's graphical console), paired with `spice-vdagent` for clipboard and
+resize. X has no mode-setting of its own: if X fails to find the video device on first boot, it needs an
+explicit driver in `/etc/X11/xorg.conf.d/`.
+
 ## Layout and install
 
 - `i3/` — `config` + numbered `conf.d/` modules (see header of `i3/config`).
