@@ -24,6 +24,6 @@ set $terminal alacritty
 # XDG_CURRENT_DESKTOP is exported from shell/xprofile (-> ~/.xprofile), which the
 # session start-up sources before i3 is exec'd, so every child of i3 inherits it.
 # i3 has no set_environment directive; an earlier version of this file used one and
-# i3 refused to parse it. See bin/xdg-portal.conf and setup_dark_theme().
+# i3 refused to parse it. See the dark-mode bullet in AGENTS.md.
 
 include conf.d/*.conf

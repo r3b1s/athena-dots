@@ -2,6 +2,39 @@ These dotfiles are intended to set up a custom [AthenaOS](https://athenaos.org/)
 
 AthenaOS is downstream of arch linux and has access to all official Arch repos. It also has access to the blackarch repos and chaotic-aur repos.
 
+## packages
+
+`install.sh` is the source of truth; this is what it installs, and why.
+
+| Area | Packages |
+| --- | --- |
+| Window manager and layout | `i3-wm`, `i3status-rust` (bar), `autotiling` |
+| Launcher, notifications | `rofi`, `dunst`, `libnotify` |
+| Terminals, editor, monitors | `alacritty` (default), `kitty`, `neovim`, `btop` |
+| Browsers | `chromium`, `qutebrowser-git` |
+| X and the session | `xorg-server`, `xorg-xinit`, `xorg-xauth`, `xorg-xrandr`, `ly` |
+| Shell and prompt | `starship`, `eza`, `zoxide`, `fzf`, `bat`, `bash-completion` |
+| Package managers | `mise`, `nix` |
+| Helpers | `jq`, `maim`, `xclip`, `xcolor`, `feh`, `numlockx`, `curl` |
+| VM guest and session services | `spice-vdagent`, `qemu-guest-agent`, `polkit-gnome`, `network-manager-applet`, `pipewire-pulse` |
+| Dark mode | `gsettings-desktop-schemas`, `dconf`, `xdg-desktop-portal`, `xdg-desktop-portal-gtk`, `adwaita-icon-theme` |
+| Font | `ttf-jetbrains-mono-nerd` |
+
+Notes on particular entries:
+
+- **`qutebrowser-git` is chaotic-aur only**, with no fallback. `install.sh` checks
+  `pacman -Si chaotic-aur/qutebrowser-git`, and if that fails it warns, finishes the rest, and exits
+  non-zero rather than substituting extra's `qutebrowser`. If a conflicting `qutebrowser` is installed it is
+  removed first.
+- **`nix` is installed, nothing more.** `install.sh` enables `nix-daemon.socket` and adds the user to
+  `nix-users` when that group exists. No channels, no flakes config: project-specific environments only.
+- **`libnotify` is load-bearing**, not a convenience: `dunst` lists it as an optdep for `dunstify`, and every
+  OSD in `bin/` calls `dunstify`.
+- **`xorg-server` and `xorg-xinit` are explicit** because `i3-wm` does not depend on either. They are what
+  `startx` needs, and what `ly` runs against.
+- **`chromium`** is installed alongside `qutebrowser-git` because both follow the system colour scheme.
+- **`ttf-jetbrains-mono-nerd`** is the font named by kitty, alacritty, i3, ly and the bar.
+
 ## Starting i3
 
 The VM has no desktop environment. `ly` is the display manager: install.sh enables `ly@tty1.service`, and
@@ -30,12 +63,18 @@ A headless VM otherwise comes up at whatever size the last SPICE client asked fo
 1080p already, the script just selects it; otherwise it adds a CEA 1080p60 modeline first. Passing another
 size, e.g. `$bin/x11-monitor 2560x1440`, works only if the output already lists that mode.
 
-Nothing more than the resolution: the script selects the mode and rate, and does nothing else. An earlier
-version also switched off extra and stale outputs, forced `--pos 0x0` and resized the framebuffer, all while
-chasing a wallpaper that appeared to tile. That turned out to be a second X screen showing through, seen as
-the same eye feature at x=534 and again 1280px later. The host now boots with a single `Virtual-1` at
-`1920x1080+0+0`, so none of that is needed. `bin/x11-wallpaper` is likewise a plain `feh --bg-fill`, with no
-`--bg-size` and no root-window reset.
+Nothing more than the resolution: the script selects the mode and rate, and does nothing else. Earlier
+versions also switched off extra and stale outputs, forced `--pos 0x0` and resized the framebuffer, chasing a
+wallpaper that appeared to tile. None of that was the cause and some of it made it worse.
+
+The actual cause: `05-autostart.conf` ran `x11-monitor` and `x11-wallpaper` as **two** `exec_always` lines,
+which i3 starts concurrently. feh painted while the GPU was still at its preferred mode, 1280x800, leaving a
+1280x800 root pixmap; `x11-monitor` then switched to 1920x1080, and X tiled that stale pixmap across the
+larger root window. On the VM the left and right halves of the screen matched to within 0.00/255 after
+painting at 1280x800 and growing to 1920x1080, and differed by 8.80 once the two were run in sequence. They
+are now one line, sequenced with `&&` in an explicit `sh -c`, because i3's `exec` does not use a shell.
+
+`bin/x11-wallpaper` is a plain `feh --bg-fill`, with no `--bg-size` and no root-window reset.
 
 ## Layout and install
 
@@ -43,33 +82,50 @@ the same eye feature at x=534 and again 1280px later. The host now boots with a 
 - One top-level dir per app (`kitty/`, `alacritty/`, `rofi/`, `dunst/`, `starship/`, …), plus `shell/` (bash integration), `bin/` (helper scripts → `~/.local/bin`).
 - `~/.config/wallpapers/` is yours: `install.sh` creates it and seeds `bleach_0.png` from the `r3b1s/wallpapers`
   repo on first run, without ever overwriting an existing file. `bin/x11-wallpaper` picks a random image from
-  it (jpg/jpeg/png/webp/bmp) on every i3 start and reload. `$mod+Shift+r` is `i3-msg reload`, which re-runs it.
-  A failed download is a warning, not a failure.
+  it (jpg/jpeg/png/webp/bmp) on every i3 start and reload. A failed download is a warning, not a failure.
+- `$mod+Shift+r` reloads i3 and then re-runs the wallpaper. Both halves need their own `exec`: i3 treats
+  everything after a `;` as a new command, so a bare `$bin/x11-wallpaper` is rejected at runtime with
+  "Expected one of these tokens: ... 'exec' ...". Note `i3 -C` validates the config file but **not** the
+  command body of a `bindsym`, so it accepts that mistake silently and the bind does nothing.
 - `install.sh` installs missing packages (pacman), enables `spice-vdagentd.socket`,
   symlinks the dots, then validates with `i3 -C`. It is the source of truth for the
   package list; keep it in sync with this file.
+- GTK ignores `org.gnome.desktop.interface` for the theme and icon theme: it reads XSETTINGS, which needs a
+  settings daemon, and there is none in a bare i3 session. `setup_gtk()` in `install.sh` therefore writes
+  `~/.config/gtk-{3,4}.0/settings.ini` with `gtk-theme-name=Adwaita`, `gtk-application-prefer-dark-theme=1`
+  and icon theme `pinkrot`. Two traps here, both verified on the VM. First, the dark variant comes from
+  `prefer-dark` and not from the theme name: `Adwaita-dark` is not a real GTK3 theme, and naming it makes GTK
+  fall back to **light** Adwaita without complaint (menu background `#F6F5F4` versus `#353535`). Second, the
+  `icon-theme` dconf key is ignored here too, so the icon theme has to be named in settings.ini.
+- `setup_gtk()` also generates a small `pinkrot` icon theme in `~/.local/share/icons/` from the package's
+  symbolic NetworkManager icons, recoloured to `#f17e97`. nm-applet asks for the plain (non-`-symbolic`)
+  names, so each is written under both, which is what replaces its pastel hardware glyph in the i3bar tray.
+  No icon files live in this repo. The glyph renders at the 0.35 opacity baked into Adwaita's SVG, so it is
+  dimmer than the bar text; strip the `opacity` attributes in the generated files to brighten it.
 - System dark mode: `setup_dark_theme()` in `install.sh` sets dconf `color-scheme=prefer-dark` and
-  `gtk-theme=Adwaita-dark`, and enables the `xdg-desktop-portal{,-gtk}` user services. GTK4 reads the first,
-  GTK3 the second, and sandboxed apps and Qt6 (qutebrowser) go through the portal. The portal backend is gated
-  on `XDG_CURRENT_DESKTOP`, exported from `shell/xprofile` (-> `~/.xprofile`) because i3 has no
-  `set_environment` directive; see `bin/xdg-portal.conf`.
-  Run the installer from inside the i3 session, or the dconf half is skipped with instructions.
-- Runtime helpers beyond the list above: jq, maim, xclip, xcolor, feh (random wallpaper), numlockx,
-  polkit-gnome, network-manager-applet, spice-vdagent, qemu-guest-agent, pipewire-pulse,
-  ttf-jetbrains-mono-nerd, starship, eza, zoxide, fzf, bat (previews `ff`), bash-completion,
-  gsettings-desktop-schemas, dconf, xdg-desktop-portal, xdg-desktop-portal-gtk, adwaita-icon-theme, curl.
-- qutebrowser is installed ONLY as chaotic-aur/qutebrowser-git (no fallback; install.sh fails loudly if chaotic-aur is missing).
-- nix is for project-specific environments only: install.sh enables `nix-daemon.socket` and nothing else (no channels).
+  `gtk-theme=Adwaita`, and enables the `xdg-desktop-portal{,-gtk}` user services. Those exist for the things
+  that ask a portal rather than reading settings themselves, which is sandboxed apps and Qt6 (qutebrowser).
+  GTK's own dark mode does **not** come from here: see the settings.ini bullet above. The portal backend is
+  gated on `XDG_CURRENT_DESKTOP`, exported from `shell/xprofile` (-> `~/.xprofile`) because i3 has no
+  `set_environment` directive. The GTK backend's descriptor, `portals/gtk.portal`, declares `UseIn=gnome`,
+  which is why that variable names GNOME at all. Check it with
+  `busctl --user call org.freedesktop.portal.Desktop /org/freedesktop/portal/desktop
+  org.freedesktop.portal.Settings ReadOne ss org.gnome.desktop.interface color-scheme`, which should answer
+  `"prefer-dark"`. Run the installer from inside the i3 session, or the dconf half is skipped with
+  instructions.
 - Guest is qemu/kvm/libvirt: no i3lock, no picom, no brightness/nightlight/screen recording.
 - Colours are the pinkrot theme throughout, kept inside each app's own dir: `i3/conf.d/01-pinkrot.conf` (window
   colours), `i3/conf.d/15-bar.conf` (bar colours; a `bar` block can't be split across includes),
   `kitty/pinkrot.conf`, `alacritty/alacritty.toml` (single file), `i3status-rust/themes/`, `rofi/`, `dunst/`,
-`qutebrowser/pinkrot.py`, `btop/`, `nvim/`; ly's is `ly/pinkrot.ini`, see "Starting i3".
+  `qutebrowser/pinkrot.py`, `btop/`, `nvim/`; ly's is `ly/pinkrot.ini`, see "Starting i3".
 - Default terminal is alacritty (`set $terminal` in `i3/config`). Kitty stays installed and keeps its
   pinkrot colours, but nothing in the config launches it and its remote-control socket is off.
 - `install.sh` links whole dirs for i3, kitty, alacritty, rofi, dunst, i3status-rust, shell; individual files for
   qutebrowser, btop, nvim and `starship/starship.toml` -> `~/.config/starship.toml` (those apps write runtime
-  state next to their config).
+  state next to their config). `shell/xprofile` is linked separately to `~/.xprofile`, which is outside
+  `~/.config`; `bin/*` goes to `~/.local/bin`; `nvim/lua/plugins/pinkrot-theme.lua` only when a LazyVim
+  `plugins/` dir exists. The ly theme is merged into `/etc/ly/config.ini` instead of linked, and the GTK icon
+  theme is generated into `~/.local/share/icons/`.
 - `shell/` is sourced by a managed `# >>> athena-dots >>>` block appended to `~/.bashrc` (idempotent, bash only):
   `init.sh` -> `aliases` (eza, zoxide `cd`/`zd`, fzf `ff`/`eff`/`sff`, `..`/`...`/`....`) and
   `integrations` (mise activation, bash-completion, starship, zoxide, fzf key bindings). Definitions are guarded by
