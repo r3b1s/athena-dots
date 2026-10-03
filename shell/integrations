@@ -22,15 +22,28 @@ fi
 # starship (the config is starship/starship.toml)
 #
 # Owns the prompt over the image's Athena PS1: ~/.bashrc sets PROMPT_COMMAND to
-# set_bash_prompt BEFORE our managed block runs, and starship stashes
-# PROMPT_COMMAND as STARSHIP_PROMPT_COMMAND and replays it inside
-# starship_precmd, which re-assigns PS1 after starship sets it. Strip just that
-# one function from both variables; other hooks (mise, zoxide) are preserved.
-# Our own hooks below re-register if missing, so this stays idempotent.
+# set_bash_prompt BEFORE our managed block runs. The catch is that the image
+# sources ble.sh first, which makes PROMPT_COMMAND an ARRAY and pushes its own
+# prompt-attach hook at index 1. The scalar assignment in ~/.bashrc then only
+# rewrites index 0, so set_bash_prompt ends up at index 1; mise prepends and
+# pushes it further along. Drop that one entry from either form. On a scalar we
+# substitute + collapse the leftover separators; on an array we filter the exact
+# element (mise/zoxide keep each hook as its own element). All other hooks are
+# preserved, and starship registers itself through blehook when ble.sh is
+# present or through PROMPT_COMMAND otherwise. This stays idempotent.
 if [[ ${TERM:-} != "dumb" ]] && command -v starship &> /dev/null; then
-  PROMPT_COMMAND="${PROMPT_COMMAND//set_bash_prompt/}"
-  while [[ "$PROMPT_COMMAND" == *";;"* ]]; do PROMPT_COMMAND="${PROMPT_COMMAND//;;/;}"; done
-  PROMPT_COMMAND="${PROMPT_COMMAND#;}"; PROMPT_COMMAND="${PROMPT_COMMAND%;}"
+  if [[ "$(declare -p PROMPT_COMMAND 2>/dev/null)" == "declare -a"* ]]; then
+    __athena_prompt_command=()
+    for __athena_hook in "${PROMPT_COMMAND[@]}"; do
+      [[ $__athena_hook == set_bash_prompt ]] || __athena_prompt_command+=("$__athena_hook")
+    done
+    PROMPT_COMMAND=("${__athena_prompt_command[@]}")
+    unset __athena_prompt_command __athena_hook
+  else
+    PROMPT_COMMAND="${PROMPT_COMMAND//set_bash_prompt/}"
+    while [[ "$PROMPT_COMMAND" == *";;"* ]]; do PROMPT_COMMAND="${PROMPT_COMMAND//;;/;}"; done
+    PROMPT_COMMAND="${PROMPT_COMMAND#;}"; PROMPT_COMMAND="${PROMPT_COMMAND%;}"
+  fi
   eval "$(starship init bash --print-full-init)"
   STARSHIP_PROMPT_COMMAND="${STARSHIP_PROMPT_COMMAND//set_bash_prompt/}"
   while [[ "${STARSHIP_PROMPT_COMMAND:-}" == *";;"* ]]; do STARSHIP_PROMPT_COMMAND="${STARSHIP_PROMPT_COMMAND//;;/;}"; done
