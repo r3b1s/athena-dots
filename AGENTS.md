@@ -14,11 +14,9 @@ AthenaOS is downstream of arch linux and has access to all official Arch repos. 
 | Browsers | `chromium`, `qutebrowser-git`, `firefox` |
 | X and the session | `xorg-server`, `xorg-xinit`, `xorg-xauth`, `xorg-xrandr`, `ly` |
 | Shell and prompt | `starship`, `eza`, `zoxide`, `fzf`, `bat`, `bash-completion` |
-| Package managers | `mise`, `nix` |
-| Helpers | `jq`, `maim`, `xclip`, `xcolor`, `feh`, `numlockx`, `curl` |
-| VM guest and session services | `spice-vdagent`, `qemu-guest-agent`, `polkit-gnome`, `network-manager-applet`, `pipewire-pulse` |
-| Dark mode | `gsettings-desktop-schemas`, `dconf`, `xdg-desktop-portal`, `xdg-desktop-portal-gtk`, `adwaita-icon-theme` |
-| Font | `ttf-jetbrains-mono-nerd` |
+| Extra shells (bash stays default; no chsh) | `fish` (vanilla extra), `xonsh` |
+| Terminal multiplexer | `tmux` (config in `tmux/`) |
+| Sync and notes | `rclone`, `obsidian` |
 
 Notes on particular entries:
 
@@ -83,16 +81,34 @@ are now one line, sequenced with `&&` in an explicit `sh -c`, because i3's `exec
 `/etc/firefox/policies/policies.json`, the documented system-wide location on Linux. The install-directory
 alternative under `/usr/lib/firefox/distribution` is read too, but a package upgrade would clobber it.
 
-The policy does two things:
+The policy does three things:
 
 - `Extensions.Install` fetches two add-ons from AMO at Firefox's first start, so that run needs network:
   Vimium (`vimium-ff`, id `{d7742d87-e61d-4b78-b8a1-b469842139fa}`) and the Flame theme
   (`nova_flame`, id `nova-flame@mozilla.org`, requires Firefox 153+). Both ids were read out of the XPIs
   rather than guessed.
+- `SearchEngines` adds Brave (`https://search.brave.com/search?q={searchTerms}`, alias `b`) and sets
+  `Default` to it, so search.brave.com is the default engine on a fresh profile.
 - `Preferences` sets `extensions.activeThemeID` to the theme's id, which is what actually *activates* it;
   installing a theme does not select it. It is set with status `default`, not `locked`, so the theme is
   active on a fresh profile but can still be changed in the UI. If a later build ever resets it, `locked`
   forces it.
+
+## Chromium
+
+`setup_chromium()` in `install.sh` installs `chromium/policies/managed/brave-search.json` to
+`/etc/chromium/policies/managed/`. Managed (not recommended/) is the only level that sets a default
+engine: it locks Brave (`https://search.brave.com/search?q={searchTerms}`) as `DefaultSearchProvider`.
+The built-in "Rose" theme has no policy equivalent, so `seed_chromium_rose()` seeds
+`browser.theme.color_scheme = 2` into `~/.config/chromium/Default/Preferences` only when no theme choice
+exists yet, never overwriting a user-picked theme. Takes effect on next launch.
+
+## sshd
+
+`setup_sshd()` in `install.sh` hardens without enabling: sshd stays `disabled` (the installer warns if it
+ever finds it enabled). It installs `ssh/sshd_config.d/10-athena-safe.conf` to
+`/etc/ssh/sshd_config.d/` (pubkey yes, passwords/interactive no, root no — validated with `sshd -t`) and
+ensures the `athena0` ed25519 key is in `~/.ssh/authorized_keys` with 700/600 perms.
 
 **Vimium's options cannot be installed by policy.** Its settings live in the extension's own browser
 storage, and the only import path is the Restore control on `chrome-extension://<id>/options.html`. No
@@ -126,14 +142,18 @@ same URL as `b`.
 
 ## Neovim
 
-`nvim/colors/pinkrot.lua` is linked to `~/.config/nvim/colors/pinkrot.lua`, but a colourscheme file alone
-does nothing: something has to select it, and a bare `neovim` package has no `init.lua`. That is why the
-theme looked uninstalled on the VM while the file was present and working.
+`nvim/` is a LazyVim tree ported from the Omarchy host (`init.lua`, `lua/config/lazy.lua`,
+`lua/config/options.lua`, `lua/config/keymaps.lua`, `lua/config/autocmds.lua`), minus Omarchy theming:
+`theme.lua`, `all-themes.lua` and `omarchy-theme-hotreload.lua` were dropped, and `pinkrot-theme.lua`
+selects the `pinkrot` colourscheme instead. Portable keeps: `snacks-animated-scrolling-off.lua`,
+`disable-news-alert.lua`. `link_nvim_tree()` links each file individually so runtime state
+(`lazyvim.json`, `lazy-lock.json`, `:Mason`, spell, shada) stays out of the repo; a leftover managed
+`-- >>> athena-dots >>>` block in a pre-existing `init.lua` is retired by `setup_nvim()`.
 
-`setup_nvim()` therefore appends a managed `-- >>> athena-dots >>>` block to `~/.config/nvim/init.lua`,
-creating the file if absent and never touching anything outside the markers, so an existing plugin-manager
-config survives. The `nvim/lua/plugins/pinkrot-theme.lua` LazyVim spec is still linked when
-`~/.config/nvim/lua/plugins/` exists.
+Athena deltas from the Omarchy source: `lua/config/options.lua` adds `vim.opt.wrap = true`;
+`lua/config/clipboard.lua` replaces `remote_clipboard.lua`'s Wayland path (`wl-copy`/`wl-paste`) with X11
+(`xclip`, already a dependency) while keeping the OSC 52 emit under tmux/SSH; `Visual` is high-contrast
+(`#f17e97` on `#050007`) instead of the low-contrast `#24101a` wash.
 
 One trap in the colours file itself: it set `vim.g.colors_name` before `highlight clear`, and that command
 resets `g:colors_name`, so it read back as nil even though the colours applied. The assignment now comes
@@ -189,11 +209,14 @@ so a rebuild needs the same one-line repair.
 - Default terminal is alacritty (`set $terminal` in `i3/config`). Kitty stays installed and keeps its
   pinkrot colours, but nothing in the config launches it and its remote-control socket is off.
 - `install.sh` links whole dirs for i3, kitty, alacritty, rofi, dunst, i3status-rust, shell; individual files for
-  qutebrowser, btop, nvim and `starship/starship.toml` -> `~/.config/starship.toml` (those apps write runtime
-  state next to their config). `shell/xprofile` is linked separately to `~/.xprofile`, which is outside
-  `~/.config`; `bin/*` goes to `~/.local/bin`; `nvim/lua/plugins/pinkrot-theme.lua` only when a LazyVim
-  `plugins/` dir exists. The ly theme is merged into `/etc/ly/config.ini` instead of linked, and the GTK icon
-  theme is generated into `~/.local/share/icons/`.
+  qutebrowser (`config.py`, `pinkrot.py`, `vimium.py`, `startpage.html`), btop, nvim (full LazyVim tree via
+  `link_nvim_tree()`), tmux (`tmux/tmux.conf` -> `~/.config/tmux/tmux.conf`), fish
+  (`fish/conf.d/*.fish`), xonsh (`xonsh/rc.xsh` -> `~/.config/xonsh/rc.xsh`), chromium policy
+  (`chromium/policies/managed/*.json` -> `/etc/chromium/policies/managed/`) and `starship/starship.toml` ->
+  `~/.config/starship.toml` (those apps write runtime state next to their config). `shell/xprofile` is linked
+  separately to `~/.xprofile`, which is outside `~/.config`; `bin/*` goes to `~/.local/bin`; the sshd drop-in
+  goes to `/etc/ssh/sshd_config.d/` (never enabled). The ly theme is merged into `/etc/ly/config.ini` instead
+  of linked, and the GTK icon theme is generated into `~/.local/share/icons/`.
 - `shell/` is sourced by a managed `# >>> athena-dots >>>` block appended to `~/.bashrc` (idempotent, bash only):
   `init.sh` -> `aliases` (eza, zoxide `cd`/`zd`, fzf `ff`/`eff`/`sff`, `..`/`...`/`....`) and
   `integrations` (mise activation, bash-completion, starship, zoxide, fzf key bindings). Definitions are guarded by

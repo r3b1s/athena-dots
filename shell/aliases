@@ -48,3 +48,16 @@ fi
 alias ..='cd ..'
 alias ...='cd ../..'
 alias ....='cd ../../..'
+
+# ── vi mode ─────────────────────────────────────────────────────────────────
+# vi-style line editing. Bash reads this file; fish/xonsh get their own config
+# files below (fish/vi_mode.fish, xonsh/rc.xsh) linked by install.sh.
+if [ -n "${BASH_VERSION:-}" ]; then
+  set -o vi
+fi
+
+# ── secure secrets editor ───────────────────────────────────────────────────
+# svim: no viminfo, no swap/backup/undo files, no plugins — secrets never touch
+# disk outside the edited file itself. SOPS_EDITOR reuses it for sops decrypts.
+alias svim="nvim -u NONE -i NONE -n -c 'set number' -c 'set nowritebackup nobackup noundofile noswapfile'"
+export SOPS_EDITOR="nvim -u NONE -i NONE -n -c 'set number' -c 'set nowritebackup nobackup noundofile noswapfile'"

@@ -76,6 +76,16 @@ PKGS+=(
     pipewire-pulse                   # pactl, used by x11-volume
     ttf-jetbrains-mono-nerd          # font used by the terminals / i3 / bar
     starship                         # shell prompt (config in starship/)
+    tmux                             # terminal multiplexer (config in tmux/)
+    rclone                           # cloud storage sync
+)
+
+# Extra shells and desktop apps (TODO.md). Bash stays the default login shell:
+# nothing here calls chsh; fish/xonsh are launched explicitly when wanted.
+PKGS+=(
+    fish                             # vanilla fish from extra, not the Athena flavour
+    xonsh                            # extra/xonsh
+    obsidian                         # notes (extra/obsidian)
 )
 
 # Session helpers and VM guest integration.
@@ -251,41 +261,40 @@ install_ly_theme() {
     echo "ly theme: log out and back in to see it"
 }
 
-# Neovim colours.
-#
-# install_links() puts pinkrot.lua in ~/.config/nvim/colors/, but a colourscheme
-# file on its own does nothing: something has to select it, and a bare `neovim`
-# package has no init.lua at all. Without this the theme is installed and never
-# used, which is exactly how it looked in the VM.
-#
-# A managed block rather than a linked init.lua, because init.lua is the user's
-# file, and may already exist with a plugin manager in it. Nothing outside the
-# markers is touched.
+# Neovim is a LazyVim tree in this repo (init.lua, lua/config, lua/plugins,
+# colors). install_links() calls link_nvim_tree() to link each file
+# individually, so runtime state (lazyvim.json, lazy-lock.json, :Mason, spell,
+# shada) stays out of the repo. setup_nvim() reconciles the reverse: if the
+# user already had a LazyVim setup, any init.lua managed block from the old
+# colourscheme-only days is removed now that init.lua itself is linked.
+link_nvim_tree() {
+    local cfg="${XDG_CONFIG_HOME:-$HOME/.config}"
+    local rel
+    ( cd "$REPO/nvim" && find . -type f | sed 's|^\./||' ) | while IFS= read -r rel; do
+        link "$REPO/nvim/$rel" "$cfg/nvim/$rel"
+    done
+}
 setup_nvim() {
     local init="${XDG_CONFIG_HOME:-$HOME/.config}/nvim/init.lua"
     local open="-- >>> athena-dots >>>"
 
-    # -e: the marker begins with "--", which grep would otherwise read as an option
-    if [ -f "$init" ] && grep -qF -e "$open" "$init"; then
-        echo "nvim: colourscheme already selected in $init"
-        return
+    # Retire the old managed block: init.lua is a symlink into the repo now,
+    # so a leftover block means the link was replaced by a real file.
+    if [ -f "$init" ] && [ ! -L "$init" ] && grep -qF -e "$open" "$init"; then
+        if [ "$dry" = 1 ]; then
+            echo "+ remove the managed colourscheme block from $init (init.lua is linked now)"
+        else
+            local tmp
+            tmp="$(mktemp)" || return 0
+            awk -v open="$open" -v close="-- <<< athena-dots <<<" '
+                $0 == open { skip = 1; prev_blank = 0; next }
+                skip && $0 == close { skip = 0; next }
+                skip { next }
+                { print }
+            ' "$init" > "$tmp" && run mv "$tmp" "$init" && echo "nvim: retired the managed colourscheme block in $init"
+            rm -f "$tmp"
+        fi
     fi
-
-    if [ "$dry" = 1 ]; then
-        echo "+ select the pinkrot colourscheme in $init"
-        return
-    fi
-
-    mkdir -p "$(dirname "$init")"
-    {
-        echo
-        echo "$open"
-        echo "-- Selects the pinkrot colourscheme linked into colors/."
-        echo "vim.opt.termguicolors = true"
-        echo 'pcall(vim.cmd.colorscheme, "pinkrot")'
-        echo "-- <<< athena-dots <<<"
-    } >> "$init"
-    echo "nvim: colourscheme selected in $init"
 }
 
 # Firefox: the Flame theme and Vimium, via enterprise policy.
@@ -315,10 +324,68 @@ setup_firefox() {
         else
             [ -f "$target" ] && run $SUDO cp -a "$target" "$target.bak.$(date +%s)"
             run $SUDO install -D -m 644 "$src" "$target"
-            echo "firefox policy: $target (Flame theme, Vimium from AMO)"
+            echo "firefox policy: $target (Flame theme, Vimium from AMO, Brave default search)"
         fi
     fi
 
+}
+
+# Chromium: Brave default search via enterprise policy. The built-in "Rose"
+# theme cannot be set by policy (no theme-selection policy exists), so it is
+# seeded into the user profile's Preferences instead — see seed_chromium_rose()
+# below. Policy files live in /etc/chromium/policies/managed/ and apply on
+# next launch; managed (not recommended/) so the user can still change search
+# back in settings if wanted... actually managed LOCKS it. That is the only
+# level that sets a default engine: recommended/ merely suggests.
+setup_chromium() {
+    local src="$REPO/chromium/policies/managed/brave-search.json"
+    local target="/etc/chromium/policies/managed/brave-search.json"
+
+    if [ -r "$src" ] && command -v pacman >/dev/null && pacman -Qq chromium >/dev/null 2>&1; then
+        say "Installing the Chromium policy"
+        if [ "$dry" = 1 ]; then
+            echo "+ install $src -> $target"
+        elif [ -f "$target" ] && cmp -s "$src" "$target"; then
+            echo "chromium policy: already up to date"
+        else
+            [ -f "$target" ] && run $SUDO cp -a "$target" "$target.bak.$(date +%s)"
+            run $SUDO install -D -m 644 "$src" "$target"
+            echo "chromium policy: $target (Brave default search)"
+        fi
+    fi
+
+    seed_chromium_rose
+}
+
+# Seed the built-in "Rose" theme into the default Chromium profile. Chromium
+# exposes no policy for theme selection; the theme choice lives in the
+# profile's Preferences (browser.theme.color_scheme + extensions.theme). Rose
+# is the built-in pink user-color theme. Only writes when no theme choice
+# exists yet, so a user-picked theme is never overwritten. Takes effect on
+# next Chromium launch.
+seed_chromium_rose() {
+    local prefs="${XDG_CONFIG_HOME:-$HOME/.config}/chromium/Default/Preferences"
+    [ -r "$prefs" ] || return 0
+    command -v python3 >/dev/null || return 0
+    python3 - "$prefs" <<'EOF' || warn "could not seed the Chromium Rose theme"
+import json, sys
+p = sys.argv[1]
+try:
+    with open(p) as f:
+        d = json.load(f)
+except (OSError, ValueError) as e:
+    print(f"chromium Rose theme: skipping ({e})")
+    sys.exit(0)
+theme = d.setdefault("browser", {}).setdefault("theme", {})
+# color_scheme 2 = Rose (built-in pink); only seed when unset.
+if "color_scheme" not in theme and "color_scheme2" not in theme:
+    theme["color_scheme"] = 2
+    with open(p, "w") as f:
+        json.dump(d, f)
+    print("chromium Rose theme: seeded into Default/Preferences")
+else:
+    print("chromium Rose theme: already chosen, leaving it alone")
+EOF
 }
 
 # Set a key in an INI file, creating the file and its [Settings] section as
@@ -495,6 +562,52 @@ enable_services() {
         || warn "could not enable spice-vdagentd.socket"
 }
 
+# Safe sshd config for the day it is ever enabled. Deliberately does NOT
+# enable sshd: `systemctl is-enabled sshd` must stay disabled. Installs a
+# drop-in (pubkey only, no passwords/interactive, no root) and the deploy key
+# into ~/.ssh/authorized_keys, then validates with sshd -t.
+setup_sshd() {
+    local src="$REPO/ssh/sshd_config.d/10-athena-safe.conf"
+    local target="/etc/ssh/sshd_config.d/10-athena-safe.conf"
+    local key='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGeIuM1WNYaQp75xua3Fh/DgPdFdEqGIVN748bbO5Sis athena0'
+
+    if [ -r "$src" ]; then
+        say "Installing the sshd hardening drop-in (service stays disabled)"
+        if [ "$dry" = 1 ]; then
+            echo "+ install $src -> $target"
+        elif [ -f "$target" ] && cmp -s "$src" "$target"; then
+            echo "sshd config: already up to date"
+        else
+            [ -f "$target" ] && run $SUDO cp -a "$target" "$target.bak.$(date +%s)"
+            run $SUDO install -D -m 644 "$src" "$target"
+            echo "sshd config: $target (pubkey only, no root)"
+        fi
+        if [ "$dry" = 0 ] && command -v sshd >/dev/null; then
+            run $SUDO sshd -t && echo "sshd config OK"
+        fi
+    fi
+
+    local auth="$HOME/.ssh/authorized_keys"
+    if [ "$dry" = 1 ]; then
+        echo "+ ensure the athena0 key is in $auth"
+    else
+        mkdir -p "$(dirname "$auth")"
+        touch "$auth"
+        chmod 700 "$(dirname "$auth")"
+        chmod 600 "$auth"
+        if grep -qF "$key" "$auth" 2>/dev/null; then
+            echo "authorized_keys: athena0 key already present"
+        else
+            printf '%s\n' "$key" >> "$auth"
+            echo "authorized_keys: added the athena0 key"
+        fi
+    fi
+
+    # Never enable: a stray `systemctl enable sshd` would undo the intent.
+    if command -v systemctl >/dev/null && systemctl is-enabled --quiet sshd 2>/dev/null; then
+        warn "sshd.service is ENABLED; TODO.md says it must stay disabled (systemctl disable sshd)"
+    fi
+}
 # ── links ─────────────────────────────────────────────────────────────────
 
 link() {
@@ -550,25 +663,27 @@ install_links() {
 
     setup_wallpapers "$cfg/wallpapers"
 
-    local pair
     for pair in \
         "qutebrowser/config.py:qutebrowser/config.py" \
         "qutebrowser/pinkrot.py:qutebrowser/pinkrot.py" \
         "qutebrowser/vimium.py:qutebrowser/vimium.py" \
+        "qutebrowser/startpage.html:qutebrowser/startpage.html" \
         "btop/btop.conf:btop/btop.conf" \
         "btop/themes/pinkrot.theme:btop/themes/pinkrot.theme" \
-        "nvim/colors/pinkrot.lua:nvim/colors/pinkrot.lua" \
+        "tmux/tmux.conf:tmux/tmux.conf" \
+        "fish/conf.d/vi_mode.fish:fish/conf.d/vi_mode.fish" \
+        "fish/conf.d/svim.fish:fish/conf.d/svim.fish" \
+        "xonsh/rc.xsh:xonsh/rc.xsh" \
         "starship/starship.toml:starship.toml"
     do
         link "$REPO/${pair%%:*}" "$cfg/${pair#*:}"
     done
 
-    # The nvim plugin spec only means something to a LazyVim setup.
-    if [ -d "$cfg/nvim/lua/plugins" ]; then
-        link "$REPO/nvim/lua/plugins/pinkrot-theme.lua" "$cfg/nvim/lua/plugins/pinkrot-theme.lua"
-    else
-        echo "no LazyVim plugins dir; select the colorscheme with :colorscheme pinkrot"
-    fi
+    # Neovim is a LazyVim tree (init.lua + lua/config + colors). Individual
+    # files are linked so runtime state (lazyvim.json, lazy-lock.json, :Mason,
+    # spell, shada) stays out of the repo. setup_nvim() reconciles below.
+    link_nvim_tree
+
 
     install_bashrc_block
 
@@ -603,6 +718,8 @@ if [ "$do_packages" = 1 ]; then
     setup_dark_theme
     setup_gtk
     setup_firefox
+    setup_chromium
+    setup_sshd
     setup_nvim
 fi
 [ "$do_links" = 1 ] && install_links

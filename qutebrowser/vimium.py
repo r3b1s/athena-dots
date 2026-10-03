@@ -46,4 +46,15 @@ c.url.searchengines = {
     "qubes": "https://search.brave.com/search?q={}+site%3Ahttps%3A%2F%2Fqubes-os.org&source=web",
     "mise": "https://search.brave.com/search?q={}+site%3Ahttps%3A%2F%2Fmise.jdx.dev&source=web",
     "ansible": "https://docs.ansible.com/projects/ansible/latest/search.html?q={}&check_keywords=yes&area=default",
+    # ── threat hunting (TODO.md) ──────────────────────────────────────
+    "shodan": "https://www.shodan.io/search?query={}",
+    "shodan-explore": "https://www.shodan.io/search/filters/{}",
+    "cve": "https://www.cve.org/Search?query={}",
+    "nvd": "https://nvd.nist.gov/vuln/search/results?form_type=Basic&results_type=overview&query={}&search_type=all&isCpeNameSearch=false",
+    "cwe": "https://cwe.mitre.org/data/definitions/{}.html",
+    "mitre": "https://attack.mitre.org/search.php?search={}",
+    "vt": "https://www.virustotal.com/gui/search/{}",
+    "greynoise": "https://viz.greynoise.io/query/?gnql={}",
+    "abuseipdb": "https://www.abuseipdb.com/check/{}",
+    "urlscan": "https://urlscan.io/search/#{}",
 }

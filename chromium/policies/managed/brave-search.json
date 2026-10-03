@@ -1,0 +1,8 @@
+{
+  "BrowserThemeColorScheme": 2,
+  "DefaultSearchProviderEnabled": true,
+  "DefaultSearchProviderName": "Brave",
+  "DefaultSearchProviderSearchURL": "https://search.brave.com/search?q={searchTerms}",
+  "DefaultSearchProviderSuggestURL": "https://search.brave.com/api/suggest?q={searchTerms}",
+  "DefaultSearchProviderIconURL": "https://search.brave.com/favicon.ico"
+}

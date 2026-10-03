@@ -20,8 +20,22 @@ if [[ ! -v BASH_COMPLETION_VERSINFO && -f /usr/share/bash-completion/bash_comple
 fi
 
 # starship (the config is starship/starship.toml)
+#
+# Owns the prompt over the image's Athena PS1: ~/.bashrc sets PROMPT_COMMAND to
+# set_bash_prompt BEFORE our managed block runs, and starship stashes
+# PROMPT_COMMAND as STARSHIP_PROMPT_COMMAND and replays it inside
+# starship_precmd, which re-assigns PS1 after starship sets it. Strip just that
+# one function from both variables; other hooks (mise, zoxide) are preserved.
+# Our own hooks below re-register if missing, so this stays idempotent.
 if [[ ${TERM:-} != "dumb" ]] && command -v starship &> /dev/null; then
+  PROMPT_COMMAND="${PROMPT_COMMAND//set_bash_prompt/}"
+  while [[ "$PROMPT_COMMAND" == *";;"* ]]; do PROMPT_COMMAND="${PROMPT_COMMAND//;;/;}"; done
+  PROMPT_COMMAND="${PROMPT_COMMAND#;}"; PROMPT_COMMAND="${PROMPT_COMMAND%;}"
   eval "$(starship init bash --print-full-init)"
+  STARSHIP_PROMPT_COMMAND="${STARSHIP_PROMPT_COMMAND//set_bash_prompt/}"
+  while [[ "${STARSHIP_PROMPT_COMMAND:-}" == *";;"* ]]; do STARSHIP_PROMPT_COMMAND="${STARSHIP_PROMPT_COMMAND//;;/;}"; done
+  STARSHIP_PROMPT_COMMAND="${STARSHIP_PROMPT_COMMAND#;}"; STARSHIP_PROMPT_COMMAND="${STARSHIP_PROMPT_COMMAND%;}"
+  unset -f set_bash_prompt 2>/dev/null || true
 fi
 
 # zoxide (provides `z`, used by the cd wrapper in ./aliases)

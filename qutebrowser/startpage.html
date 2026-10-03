@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="color-scheme" content="dark">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>start</title>
+<style>
+  :root { --bg: #050007; --fg: #f17e97; --muted: #8f4d61; --box: #0d060b; --line: #4a1526; }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font: 14px/1.5 "JetBrainsMono Nerd Font", monospace;
+         margin: 0; min-height: 100vh; display: grid; place-items: center; }
+  main { width: min(640px, 92vw); }
+  h1 { font-size: 20px; margin: 0 0 16px; letter-spacing: 2px; }
+  form { display: flex; gap: 8px; margin-bottom: 20px; }
+  input { flex: 1; background: var(--box); color: var(--fg); border: 1px solid var(--line);
+          padding: 10px 12px; font: inherit; border-radius: 6px; }
+  input:focus { outline: 1px solid var(--fg); }
+  button { background: var(--fg); color: var(--bg); border: 0; padding: 0 18px;
+           font: inherit; font-weight: bold; border-radius: 6px; cursor: pointer; }
+  section { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  a { color: var(--fg); text-decoration: none; background: var(--box); border: 1px solid var(--line);
+      padding: 8px 10px; border-radius: 6px; display: block; }
+  a small { display: block; color: var(--muted); font-size: 11px; }
+  a:hover { border-color: var(--fg); }
+</style>
+</head>
+<body>
+<main>
+  <h1>sup|u</h1>
+  <form id="search" action="https://search.brave.com/search" method="get">
+    <input name="q" autofocus placeholder="brave search…" aria-label="search brave">
+    <button>go</button>
+  </form>
+  <section>
+    <a href="https://search.brave.com/search?q={}">brave<small>search</small></a>
+    <a href="https://shodan.io/search?query=">shodan<small>threat intel</small></a>
+    <a href="https://www.cve.org/">cve.org<small>cves</small></a>
+    <a href="https://nvd.nist.gov/vuln/search">nvd<small>cves</small></a>
+    <a href="https://github.com/">github<small>code</small></a>
+    <a href="https://wiki.archlinux.org/">arch wiki<small>docs</small></a>
+  </section>
+</main>
+</body>
+</html>

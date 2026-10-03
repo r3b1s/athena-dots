@@ -74,7 +74,7 @@ local highlights = {
   TabLineSel = { fg = p.fg, bg = p.bg_visual, bold = true },
   Title = { fg = p.accent_2, bold = true },
   VertSplit = { fg = p.border, bg = p.bg },
-  Visual = { bg = p.bg_visual },
+  Visual = { fg = "#050007", bg = "#f17e97", bold = true },
   WarningMsg = { fg = p.orange },
   Whitespace = { fg = p.border },
   WinSeparator = { fg = p.border, bg = p.bg },
