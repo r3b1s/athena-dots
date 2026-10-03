@@ -213,14 +213,18 @@ so a rebuild needs the same one-line repair.
   `link_nvim_tree()`), tmux (`tmux/tmux.conf` -> `~/.config/tmux/tmux.conf`), fish
   (`fish/conf.d/*.fish`), xonsh (`xonsh/rc.xsh` -> `~/.config/xonsh/rc.xsh`), chromium policy
   (`chromium/policies/managed/*.json` -> `/etc/chromium/policies/managed/`) and `starship/starship.toml` ->
-  `~/.config/starship.toml` (those apps write runtime state next to their config). `shell/xprofile` is linked
-  separately to `~/.xprofile`, which is outside `~/.config`; `bin/*` goes to `~/.local/bin`; the sshd drop-in
-  goes to `/etc/ssh/sshd_config.d/` (never enabled). The ly theme is merged into `/etc/ly/config.ini` instead
+  `~/.config/starship.toml` (those apps write runtime state next to their config). `shell/xprofile` and
+  `shell/blerc` are linked separately to `~/.xprofile` and `~/.blerc`, which are outside `~/.config`; `bin/*` goes
+  to `~/.local/bin`; the sshd drop-in goes to `/etc/ssh/sshd_config.d/` (never enabled). The ly theme is merged
+  into `/etc/ly/config.ini` instead
   of linked, and the GTK icon theme is generated into `~/.local/share/icons/`.
 - `shell/` is sourced by a managed `# >>> athena-dots >>>` block appended to `~/.bashrc` (idempotent, bash only):
   `init.sh` -> `aliases` (eza, zoxide `cd`/`zd`, fzf `ff`/`eff`/`sff`, `..`/`...`/`....`) and
   `integrations` (mise activation, bash-completion, starship, zoxide, fzf key bindings). Definitions are guarded by
-  `command -v`, so a missing tool silently disables its aliases.
+  `command -v`, so a missing tool silently disables its aliases. `shell/blerc` is linked to `~/.blerc`, ble.sh's
+  own config (the image ships `blesh-git` and a `/etc/skel/.blerc`): it keeps the image defaults and turns off
+  ble.sh's vi-mode `-- INSERT --` indicator with the deferred `bleopt keymap_vi_mode_show:=` form, since ~/.blerc
+  is sourced before the option is declared.
 - Requires a bash login shell; `install.sh` warns if `$SHELL` is something else.
 - mise is activated in `shell/integrations` (with `set +h`, or bash caches binary paths ahead of the
   shims). No global or project mise config is managed by this repo; put one in `mise/config.toml` if wanted.

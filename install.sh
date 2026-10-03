@@ -693,6 +693,12 @@ install_links() {
     # separate link rather than one of the pair mappings above.
     link "$REPO/shell/xprofile" "$HOME/.xprofile"
 
+    # ~/.blerc is ble.sh's own config. The AthenaOS image ships one in
+    # /etc/skel; link ours over it so the image defaults are kept and the
+    # vi-mode indicator stays off. Also outside ~/.config, so the same
+    # separate-link treatment.
+    link "$REPO/shell/blerc" "$HOME/.blerc"
+
     local script
     for script in "$REPO"/bin/*; do
         link "$script" "$HOME/.local/bin/$(basename "$script")"

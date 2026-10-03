@@ -1,0 +1,19 @@
+# ble.sh (the AthenaOS image's blesh-git package) reads this as ~/.blerc.
+#
+# The first three settings reproduce /etc/skel/.blerc from the image so that
+# replacing it with a symlink to this file does not lose the packaged defaults.
+# Everything below is our own.
+
+# Set proper background color on the autocomplete
+ble-face auto_complete='fg=242,bg=235'
+ble-face region_insert=''
+bleopt exec_errexit_mark=''
+
+# Hide ble.sh's vi-mode indicator ("-- INSERT --", "-- NORMAL --", "-- VISUAL --").
+# Bash's built-in `set -o vi` (readline) shows no such indicator, and that is the
+# behaviour we want. Note the `:=` rather than `=`: ~/.blerc is sourced before
+# ble.sh lazily loads lib/keymap.vi.sh, where this option is declared, so a plain
+# `=` aborts with "bleopt: option `keymap_vi_mode_show' not found". The `:=` form
+# sets the value *and* pre-declares the option, so the later bleopt/declare in
+# lib/keymap.vi.sh (`: "${var=default}"`) leaves our empty value in place.
+bleopt keymap_vi_mode_show:=
