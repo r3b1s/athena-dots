@@ -38,6 +38,10 @@ if [ -z "$wallpaper" ]; then
 fi
 
 if command -v feh >/dev/null && feh --bg-fill "$wallpaper"; then
+    # Stable pointer for qutebrowser's startpage, which reaches this as
+    # ../wallpapers/current from ~/.config/qutebrowser/startpage.html. feh's own
+    # record in ~/.fehbg is a shell script, not an image the browser can render.
+    ln -sf "$(readlink -f "$wallpaper")" "$dir/current" 2>/dev/null || true
     notify "$(basename "$wallpaper")"
 else
     echo "x11-wallpaper: feh failed for $wallpaper" >&2
