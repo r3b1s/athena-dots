@@ -1,18 +1,38 @@
 #!/bin/sh
-# x11-ws-app <workspace> [command...]
+# x11-ws-app [--no-baf] [--notify <title> <message>] <workspace> [command...]
 #
 # Toggle a named workspace, hyprland-special-workspace style:
 #   - if the workspace is already focused: jump back to the previous one
 #   - otherwise: switch to it, and if it's empty and a command was given,
 #     launch the command (hyprland's on_created_empty)
+#
+# "--no-baf" flag:
+#   - do not use i3's back_and_forth behavior when the workspace is already focused
 set -eu
+
+no_baf=false
+notify=false
+notify_title=''
+notify_msg=''
+
+if [ "${1:-}" = "--no-baf" ]; then
+    no_baf=true
+    shift
+fi
+
+if [ "${1:-}" = "--notify" ]; then
+    notify=true
+    notify_title="${2:-}"
+    notify_msg="${3:-}"
+    shift 3
+fi
 
 ws="$1"
 shift
 
 focused=$(i3-msg -t get_workspaces | jq -r '.[] | select(.focused) | .name')
 
-if [ "$focused" = "$ws" ]; then
+if [ "$focused" = "$ws" ] && [ "$no_baf" = false ]; then
     exec i3-msg workspace back_and_forth >/dev/null
 fi
 
@@ -24,7 +44,11 @@ if [ "$#" -gt 0 ]; then
          | select(.type == "workspace" and .name == $ws)][0]
         | [recurse(.nodes[]?, .floating_nodes[]?) | select(.window != null)]
         | length')
+
     if [ "${windows:-0}" -eq 0 ]; then
+        if [ "${notify:-false}" = "true" ]; then
+          dunstify "$notify_title" "$notify_msg"
+        fi
         "$@" >/dev/null 2>&1 &
     fi
 fi
