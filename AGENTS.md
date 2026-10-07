@@ -9,7 +9,7 @@ AthenaOS is downstream of arch linux and has access to all official Arch repos. 
 | Area | Packages |
 | --- | --- |
 | Window manager and layout | `i3-wm`, `i3status-rust` (bar), `autotiling` |
-| Launcher, notifications | `rofi`, `dunst`, `libnotify` |
+| Launcher, notifications | `rofi`, `rofimoji` (emoji picker, `$mod+Ctrl+e`), `dunst`, `libnotify` |
 | Terminals, editor, monitors | `alacritty` (default), `kitty`, `neovim`, `btop` |
 | Browsers | `chromium`, `qutebrowser-git`, `firefox` |
 | X and the session | `xorg-server`, `xorg-xinit`, `xorg-xauth`, `xorg-xrandr`, `ly` |
