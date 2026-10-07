@@ -138,6 +138,23 @@ install_qutebrowser() {
     run $SUDO pacman -S --needed --noconfirm chaotic-aur/qutebrowser-git
 }
 
+# yay comes from chaotic-aur ONLY, installed by its qualified name so pacman
+# cannot fall back to another repo. As with qutebrowser-git there is deliberately
+# no fallback: if chaotic-aur is absent or unsynced, warn and carry on.
+install_yay() {
+    command -v pacman >/dev/null || return 0
+    pacman -Qq yay >/dev/null 2>&1 && return 0
+
+    say "Checking yay (chaotic-aur)"
+    if ! pacman -Si chaotic-aur/yay >/dev/null 2>&1; then
+        warn "chaotic-aur/yay is unavailable (is chaotic-aur enabled and synced?)."
+        warn "Not installing yay from any other repo. Fix chaotic-aur and re-run."
+        FAILED=1
+        return 0
+    fi
+    run $SUDO pacman -S --needed --noconfirm chaotic-aur/yay
+}
+
 # Wallpapers live in ~/.config/wallpapers, which is yours: drop anything in and
 # bin/x11-wallpaper picks from it at random. The pinkrot background set is
 # seeded on first run so the desktop is not bare, and an existing file is never
@@ -749,6 +766,7 @@ install_links() {
 if [ "$do_packages" = 1 ]; then
     install_packages
     install_qutebrowser
+    install_yay
     install_ly_theme
     enable_services
     enable_nix
@@ -763,7 +781,7 @@ fi
 
 echo
 if [ "$FAILED" = 1 ]; then
-    warn "finished with errors: qutebrowser-git was not installed (see above)"
+    warn "finished with errors: a chaotic-aur package (qutebrowser-git/yay) was not installed (see above)"
     exit 1
 fi
 echo "Done. Log into the i3 session, or reload with \$mod+Shift+Ctrl+Mod1+c (i3-msg reload)."

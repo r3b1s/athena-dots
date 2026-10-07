@@ -24,6 +24,9 @@ Notes on particular entries:
   `pacman -Si chaotic-aur/qutebrowser-git`, and if that fails it warns, finishes the rest, and exits
   non-zero rather than substituting extra's `qutebrowser`. If a conflicting `qutebrowser` is installed it is
   removed first.
+- **`yay` is chaotic-aur only** too, and installed by its qualified name `chaotic-aur/yay` so pacman cannot
+  pull it from another repo. `install.sh` checks `pacman -Si chaotic-aur/yay` and, if that fails, warns,
+  finishes the rest, and exits non-zero; there is no fallback repo. An already-installed `yay` is left alone.
 - **`nix` is installed, nothing more.** `install.sh` enables `nix-daemon.socket` and adds the user to
   `nix-users` when that group exists. No channels, no flakes config: project-specific environments only.
 - **`libnotify` is load-bearing**, not a convenience: `dunst` lists it as an optdep for `dunstify`, and every
