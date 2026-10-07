@@ -20,6 +20,7 @@ set $mod Mod4
 set $bin ~/.local/bin
 # Default terminal. alacritty/alacritty.toml carries the pinkrot colours.
 set $terminal alacritty
+set $terminal-cmd alacritty --command
 
 # XDG_CURRENT_DESKTOP is exported from shell/xprofile (-> ~/.xprofile), which the
 # session start-up sources before i3 is exec'd, so every child of i3 inherits it.
