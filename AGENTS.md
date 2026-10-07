@@ -168,8 +168,9 @@ so a rebuild needs the same one-line repair.
 
 - `i3/` — `config` + numbered `conf.d/` modules (see header of `i3/config`).
 - One top-level dir per app (`kitty/`, `alacritty/`, `rofi/`, `dunst/`, `starship/`, …), plus `shell/` (bash integration), `bin/` (helper scripts → `~/.local/bin`).
-- `~/.config/wallpapers/` is yours: `install.sh` creates it and seeds `bleach_0.png` from the `r3b1s/wallpapers`
-  repo on first run, without ever overwriting an existing file. `bin/x11-wallpaper` picks a random image from
+- `~/.config/wallpapers/` is yours: `install.sh` creates it and seeds the backgrounds from the
+  `r3b1s/omarchy-pinkrot-theme` repo (`backgrounds/`) on first run, downloading each file individually and
+  never overwriting an existing one. `bin/x11-wallpaper` picks a random image from
   it (jpg/jpeg/png/webp/bmp) on every i3 start and reload. A failed download is a warning, not a failure.
 - `$mod+Shift+r` reloads i3 and then re-runs the wallpaper. Both halves need their own `exec`: i3 treats
   everything after a `;` as a new command, so a bare `$bin/x11-wallpaper` is rejected at runtime with

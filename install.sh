@@ -139,47 +139,78 @@ install_qutebrowser() {
 }
 
 # Wallpapers live in ~/.config/wallpapers, which is yours: drop anything in and
-# bin/x11-wallpaper picks from it at random. One image is seeded on first run so
-# the desktop is not bare, and an existing one is never overwritten.
-WALLPAPER_URL="https://raw.githubusercontent.com/r3b1s/wallpapers/refs/heads/main/red/bleach_0.png"
-WALLPAPER_FILE="bleach_0.png"
+# bin/x11-wallpaper picks from it at random. The pinkrot background set is
+# seeded on first run so the desktop is not bare, and an existing file is never
+# overwritten.
+WALLPAPER_BASE="https://raw.githubusercontent.com/r3b1s/omarchy-pinkrot-theme/main/backgrounds"
+WALLPAPERS=(
+    bleach_0.webp
+    elden_ring_malenia_0.webp
+    elden_ring_malenia_1.webp
+    skullkid_moon_0.png
+)
 
 setup_wallpapers() {
-    local dir="$1" dest="$1/$WALLPAPER_FILE"
+    local dir="$1"
 
     if [ "$dry" = 1 ]; then
         echo "+ ensure $dir exists"
-        [ -e "$dest" ] || echo "+ download $WALLPAPER_FILE into $dir"
+        local name
+        for name in "${WALLPAPERS[@]}"; do
+            [ -e "$dir/$name" ] || echo "+ download $name into $dir"
+        done
         return
     fi
 
     [ -d "$dir" ] || { run mkdir -p "$dir"; echo "created $dir"; }
 
-    if [ -e "$dest" ]; then
-        echo "wallpaper: $WALLPAPER_FILE already present"
+    local fetch=""
+    if command -v curl >/dev/null; then
+        fetch=curl
+    elif command -v wget >/dev/null; then
+        fetch=wget
+    else
+        warn "neither curl nor wget is available; not fetching wallpapers"
         return
     fi
 
-    say "Fetching a wallpaper"
-    # Download to a temporary name and move it into place, so an interrupted or
-    # failed fetch can never leave a truncated image that --bg-fill would choke on.
-    local tmp="$dir/.$WALLPAPER_FILE.part.$$"
-    local ok=0
-    if command -v curl >/dev/null; then
-        curl -fsSL --max-time 120 -o "$tmp" "$WALLPAPER_URL" && ok=1
-    elif command -v wget >/dev/null; then
-        wget -q -T 120 -O "$tmp" "$WALLPAPER_URL" && ok=1
-    else
-        warn "neither curl nor wget is available; not fetching a wallpaper"
-    fi
+    local name url dest tmp ok
+    for name in "${WALLPAPERS[@]}"; do
+        dest="$dir/$name"
+        if [ -e "$dest" ]; then
+            echo "wallpaper: $name already present"
+            continue
+        fi
 
-    if [ "$ok" = 1 ] && [ -s "$tmp" ]; then
-        mv "$tmp" "$dest"
-        echo "wallpaper: saved $dest ($(du -h "$dest" | cut -f1))"
-    else
-        rm -f "$tmp"
-        warn "could not download $WALLPAPER_URL (offline?)"
-        warn "the desktop will stay unset; drop any image into $dir by hand"
+        url="$WALLPAPER_BASE/$name"
+        say "Fetching $name"
+        # Download to a temporary name and move it into place, so an interrupted
+        # or failed fetch can never leave a truncated image that --bg-fill would
+        # choke on.
+        tmp="$dir/.$name.part.$$"
+        ok=0
+        if [ "$fetch" = curl ]; then
+            curl -fsSL --max-time 120 -o "$tmp" "$url" && ok=1
+        else
+            wget -q -T 120 -O "$tmp" "$url" && ok=1
+        fi
+
+        if [ "$ok" = 1 ] && [ -s "$tmp" ]; then
+            mv "$tmp" "$dest"
+            echo "wallpaper: saved $dest ($(du -h "$dest" | cut -f1))"
+        else
+            rm -f "$tmp"
+            warn "could not download $url (offline?)"
+        fi
+    done
+
+    local existing
+    existing=$(find "$dir" -maxdepth 1 -type f -not -name '.*' \
+        \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' -o -iname '*.bmp' \) \
+        -print -quit 2>/dev/null || true)
+    if [ -z "$existing" ]; then
+        warn "no wallpapers in $dir; the desktop will stay unset"
+        warn "drop any image into $dir by hand"
     fi
 }
 
